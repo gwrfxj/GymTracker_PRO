@@ -46,7 +46,7 @@ import {
 // Firebase Configuration
 // ===============================================
 const firebaseConfig = {
-  apiKey: "AIzaSyD8ageAet2hwGxBDnEZsjqD6wOtkvvDb04",
+  apiKey: "AIzaSyBh37LFOyhCsyy5UOULCLL5_GUJbSHelJ4",
   authDomain: "gymtracker-pro-7ac65.firebaseapp.com",
   projectId: "gymtracker-pro-7ac65",
   storageBucket: "gymtracker-pro-7ac65.appspot.com",
@@ -70,6 +70,24 @@ const IS_PROD_HOST =
 // Only run App Check on production hosts, or when a debug token is explicitly set.
 // For local dev, go to Firebase Console → App Check → Debug tokens, create one,
 // then paste it below and refresh. Remove it again before committing.
+
+// Enable App Check debug on localhost automatically.
+// If you already created a Debug Token in Console → App Check → Debug tokens,
+// you can paste it into localStorage under the key "APPCHECK_DEBUG_TOKEN"
+// and it will be used automatically. Otherwise, we do NOT enable debug mode unless a token is present.
+if (IS_LOCAL) {
+  try {
+    const savedToken = localStorage.getItem('APPCHECK_DEBUG_TOKEN');
+    if (savedToken && savedToken.trim()) {
+      self.FIREBASE_APPCHECK_DEBUG_TOKEN = savedToken.trim();
+      console.info('[AppCheck] Using debug token from localStorage.');
+    } else {
+      console.info('[AppCheck] Localhost detected and no debug token found in localStorage. Skipping App Check locally.');
+    }
+  } catch (e) {
+    console.warn('[AppCheck] Could not read debug token from localStorage:', e?.message || e);
+  }
+}
 try {
   // Uncomment this line after you add a debug token in the Console for localhost:
   // if (IS_LOCAL) self.FIREBASE_APPCHECK_DEBUG_TOKEN = 'PASTE_DEBUG_TOKEN_HERE';
@@ -308,16 +326,29 @@ window.handleLogout = async () => {
 
 // Auth state observer
 onAuthStateChanged(auth, async (user) => {
-    if (user) {
-        currentUser = user;
-        await loadUserData();
-        showMainDashboard();
-        hideLoadingScreen();
-    } else {
-        currentUser = null;
-        showAuthScreen();
-        hideLoadingScreen();
+  if (user) {
+    try {
+      const userRef = doc(db, "users", user.uid);
+      const snap = await getDoc(userRef);
+
+      // ✅ Fix: if doc exists but missing userId, patch it
+      if (snap.exists() && !snap.data().userId) {
+        await updateDoc(userRef, { userId: user.uid });
+        console.log("[Fix] Added missing userId to existing profile");
+      }
+    } catch (e) {
+      console.warn("User profile backfill check failed:", e);
     }
+
+    currentUser = user;
+    await loadUserData();
+    showMainDashboard();
+    hideLoadingScreen();
+  } else {
+    currentUser = null;
+    showAuthScreen();
+    hideLoadingScreen();
+  }
 });
 
 // ===============================================
@@ -714,15 +745,34 @@ window.finishWorkout = async () => {
             createdAt: serverTimestamp()
         });
         
-        // Update user stats
+        // Update user stats (works even if the profile/stats are missing)
         const userRef = doc(db, 'users', currentUser.uid);
-        const userDoc = await getDoc(userRef);
-        const currentStats = userDoc.data().stats || {};
-        
+        let snap = await getDoc(userRef);
+
+        // If the user doc doesn't exist yet, seed it with defaults
+        if (!snap.exists()) {
+        await setDoc(userRef, {
+            userId: currentUser.uid,
+            createdAt: serverTimestamp(),
+            stats: {
+            totalWorkouts: 0,
+            totalWeight: 0,
+            currentStreak: 0,
+            lastWorkout: null,
+            personalRecords: {}
+            }
+        }, { merge: true });
+        snap = await getDoc(userRef);
+        }
+
+        // Safely read current stats
+        const data = snap.exists() ? snap.data() : {};
+        const currentStats = data?.stats ?? { totalWorkouts: 0, totalWeight: 0 };
+
         await updateDoc(userRef, {
-            'stats.totalWorkouts': (currentStats.totalWorkouts || 0) + 1,
-            'stats.totalWeight': (currentStats.totalWeight || 0) + totalVolume,
-            'stats.lastWorkout': serverTimestamp()
+        'stats.totalWorkouts': (currentStats.totalWorkouts ?? 0) + 1,
+        'stats.totalWeight': (currentStats.totalWeight ?? 0) + totalVolume,
+        'stats.lastWorkout': serverTimestamp()
         });
         
         // Reset workout UI
