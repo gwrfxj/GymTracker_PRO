@@ -980,8 +980,41 @@ async function loadPRs() {
 }
 
 // Photo Progress
-window.addProgressPhoto = () => {
-    document.getElementById('photo-input').click();
+window.addProgressPhoto = () => choosePhotoSource();
+
+// Show a tiny menu to choose Camera vs Library
+window.choosePhotoSource = () => {
+  const menu = document.getElementById('photo-source-menu');
+  // If the menu doesn't exist (older HTML), fall back to library chooser
+  if (!menu) {
+    const lib = document.getElementById('photo-input-library') || document.getElementById('photo-input');
+    return lib ? lib.click() : null;
+  }
+  // Toggle open
+  menu.style.display = 'block';
+
+  // Click outside to close
+  const closeOnOutside = (ev) => {
+    if (!menu.contains(ev.target)) {
+      menu.style.display = 'none';
+      document.removeEventListener('click', closeOnOutside);
+    }
+  };
+  setTimeout(() => document.addEventListener('click', closeOnOutside), 0);
+};
+
+window.openCamera = () => {
+  const menu = document.getElementById('photo-source-menu');
+  if (menu) menu.style.display = 'none';
+  const cam = document.getElementById('photo-input-camera');
+  if (cam) cam.click();
+};
+
+window.openLibrary = () => {
+  const menu = document.getElementById('photo-source-menu');
+  if (menu) menu.style.display = 'none';
+  const lib = document.getElementById('photo-input-library');
+  if (lib) lib.click();
 };
 
 // Simple, reliable upload + preview using getDownloadURL
@@ -1220,9 +1253,7 @@ function displayExercises(category) {
 
 // Search functionality
 document.addEventListener('DOMContentLoaded', () => {
-  // Wire up hidden file input for progress photos
-  const _photoInput = document.getElementById('photo-input');
-    // ---- Auto-upgrade any <img src="users/..."> to signed HTTPS URLs
+  // ---- Auto-upgrade any <img src="users/..."> to signed HTTPS URLs
   function needsUpgrade(src) {
     return src && !/^https?:\/\//i.test(src) && /(\/)?users\//i.test(src);
   }
@@ -1265,47 +1296,57 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
   mo.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] });
-  if (_photoInput && !_photoInput.dataset.wired) {
-    _photoInput.addEventListener('change', window.handlePhotoUpload);
-    _photoInput.dataset.wired = '1';
+
+  // Wire up both hidden file inputs for progress photos (camera & library)
+  const _photoInputCam = document.getElementById('photo-input-camera');
+  const _photoInputLib = document.getElementById('photo-input-library');
+
+  if (_photoInputCam && !_photoInputCam.dataset.wired) {
+    _photoInputCam.addEventListener('change', window.handlePhotoUpload);
+    _photoInputCam.dataset.wired = '1';
   }
-    const searchInput = document.getElementById('exercise-search');
-    if (searchInput) {
-        searchInput.addEventListener('input', (e) => {
-            const searchTerm = e.target.value.toLowerCase();
-            const filtered = defaultExercises.filter(exercise => 
-                exercise.name.toLowerCase().includes(searchTerm) ||
-                exercise.muscles.some(muscle => muscle.toLowerCase().includes(searchTerm))
-            );
-            
-            const exercisesGrid = document.getElementById('exercises-grid');
-            exercisesGrid.innerHTML = '';
-            
-            filtered.forEach(exercise => {
-                const exerciseCard = document.createElement('div');
-                exerciseCard.className = 'exercise-card';
-                exerciseCard.innerHTML = `
-                    <div class="exercise-card-header">
-                        <div class="exercise-card-title">${exercise.name}</div>
-                        <div class="exercise-card-category">${exercise.category}</div>
-                    </div>
-                    <div class="exercise-card-muscles">${exercise.muscles.join(', ')}</div>
-                    <div class="exercise-card-difficulty">
-                        ${Array.from({length: 5}, (_, i) => 
-                            `<span class="difficulty-star ${i < exercise.difficulty ? 'filled' : ''}">★</span>`
-                        ).join('')}
-                    </div>
-                `;
-                
-                exerciseCard.onclick = () => {
-                    document.getElementById('exercise-name').value = exercise.name;
-                    addExercise();
-                };
-                
-                exercisesGrid.appendChild(exerciseCard);
-            });
-        });
-    }
+  if (_photoInputLib && !_photoInputLib.dataset.wired) {
+    _photoInputLib.addEventListener('change', window.handlePhotoUpload);
+    _photoInputLib.dataset.wired = '1';
+  }
+
+  const searchInput = document.getElementById('exercise-search');
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      const searchTerm = e.target.value.toLowerCase();
+      const filtered = defaultExercises.filter(exercise => 
+        exercise.name.toLowerCase().includes(searchTerm) ||
+        exercise.muscles.some(muscle => muscle.toLowerCase().includes(searchTerm))
+      );
+
+      const exercisesGrid = document.getElementById('exercises-grid');
+      exercisesGrid.innerHTML = '';
+
+      filtered.forEach(exercise => {
+        const exerciseCard = document.createElement('div');
+        exerciseCard.className = 'exercise-card';
+        exerciseCard.innerHTML = `
+            <div class="exercise-card-header">
+                <div class="exercise-card-title">${exercise.name}</div>
+                <div class="exercise-card-category">${exercise.category}</div>
+            </div>
+            <div class="exercise-card-muscles">${exercise.muscles.join(', ')}</div>
+            <div class="exercise-card-difficulty">
+                ${Array.from({length: 5}, (_, i) => 
+                    `<span class="difficulty-star ${i < exercise.difficulty ? 'filled' : ''}">★</span>`
+                ).join('')}
+            </div>
+        `;
+
+        exerciseCard.onclick = () => {
+          document.getElementById('exercise-name').value = exercise.name;
+          addExercise();
+        };
+
+        exercisesGrid.appendChild(exerciseCard);
+      });
+    });
+  }
 });
 
 // ===============================================
