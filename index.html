@@ -517,20 +517,33 @@
 
                 <!-- Photo grid (JS fills this) -->
                 <div class="photo-grid" id="progress-photos"></div>
-                <!-- Visible button (mobile-friendly) -->
-                <button class="add-photo-btn" type="button" onclick="addProgressPhoto()">
-                  <i class="fas fa-camera"></i>
-                  <span>Add Photo</span>
-                </button>
 
-                <!-- Hidden file input (triggered by button) -->
-                <input
-                  id="photo-input"
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  style="display:none"
-                />
+                <!-- Add Photo button opens a tiny chooser -->
+                <div class="photo-actions" style="position: relative; display: inline-block;">
+                  <button class="add-photo-btn" type="button" onclick="addProgressPhoto()">
+                    <i class="fas fa-camera"></i>
+                    <span>Add Photo</span>
+                  </button>
+
+                  <!-- Tiny chooser (hidden by default) -->
+                  <div id="photo-source-chooser"
+                       style="display:none; position:absolute; top:110%; left:0; background:#0b0b0b; border:1px solid rgba(255,255,255,0.15); border-radius:10px; padding:8px; min-width:200px; z-index:9999; box-shadow:0 8px 24px rgba(0,0,0,0.35);">
+                    <button type="button"
+                            onclick="openCamera()"
+                            style="width:100%; padding:10px 12px; background:#111; color:#fff; border:1px solid rgba(255,255,255,0.12); border-radius:8px; margin:2px 0; text-align:left;">
+                      📷 Take Photo (Camera)
+                    </button>
+                    <button type="button"
+                            onclick="openLibrary()"
+                            style="width:100%; padding:10px 12px; background:#111; color:#fff; border:1px solid rgba(255,255,255,0.12); border-radius:8px; margin:2px 0; text-align:left;">
+                      🖼️ Choose from Library
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Hidden file inputs (camera vs library) -->
+                <input id="photo-input-camera" type="file" accept="image/*" capture="environment" style="display:none">
+                <input id="photo-input-library" type="file" accept="image/*" style="display:none">
               </div>
 
               <!-- Body Measurements -->
