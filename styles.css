@@ -2039,3 +2039,28 @@
         scrollbar-width: thin;
         scrollbar-color: var(--primary-red) rgba(255, 255, 255, 0.05);
     }
+
+    /* Container for progress photos */
+#progress-photos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px; /* spacing between photos */
+  margin-top: 15px;
+}
+
+/* Each photo */
+#progress-photos img {
+  max-width: 150px;   /* make them smaller */
+  max-height: 150px;
+  object-fit: cover;  /* crop nicely instead of stretching */
+  border-radius: 8px; /* optional: rounded corners */
+  border: 2px solid #444;
+}
+
+/* Inline note next to Photo Progress title */
+.photo-cap {
+  font-size: 0.85rem;
+  color: #9aa3ad; /* subtle gray */
+  margin-left: 8px;
+  font-weight: 400;
+}
