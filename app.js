@@ -46,27 +46,56 @@ import {
 // Firebase Configuration
 // ===============================================
 const firebaseConfig = {
-    apiKey: "AIzaSyD8ageAet2hwGxBDnEZsjqD6wOtkvvDb04",
-    authDomain: "gymtracker-pro-7ac65.firebaseapp.com",
-    projectId: "gymtracker-pro-7ac65",
-    storageBucket: "gymtracker-pro-7ac65.firebasestorage.app",
-    messagingSenderId: "321858828026",
-    appId: "1:321858828026:web:7deb1cbcc162d5bf2f7b43",
-    measurementId: "G-2EZ01FJ9E2"
+  apiKey: "AIzaSyD8ageAet2hwGxBDnEZsjqD6wOtkvvDb04",
+  authDomain: "gymtracker-pro-7ac65.firebaseapp.com",
+  projectId: "gymtracker-pro-7ac65",
+  storageBucket: "gymtracker-pro-7ac65.appspot.com",
+  messagingSenderId: "321858828026",
+  appId: "1:321858828026:web:7deb1cbcc162d5bf2f7b43",
+  measurementId: "G-2EZ01FJ9E2"
 };
-
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-// --- Firebase App Check (reCAPTCHA v3) ---
-// If developing locally, uncomment the next line and add the debug token in Console → App Check → Debug tokens
-// self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
-const appCheck = initializeAppCheck(app, {
-  provider: new ReCaptchaV3Provider('6Lc_LqkrAAAAAM7iXwzE4JwocEnFPrS3I1rxVot6'),
-  isTokenAutoRefreshEnabled: true,
-});
-// --- End App Check ---
-const analytics = getAnalytics(app);
+
+// ---- Host flags
+const HOST = location.hostname;
+const IS_LOCAL =
+  HOST === 'localhost' || HOST === '127.0.0.1';
+const IS_PROD_HOST =
+  /\.pages\.dev$/.test(HOST) ||
+  /\.web\.app$/.test(HOST) ||
+  /\.firebaseapp\.com$/.test(HOST);
+
+// ---- App Check (reCAPTCHA v3)
+// Only run App Check on production hosts, or when a debug token is explicitly set.
+// For local dev, go to Firebase Console → App Check → Debug tokens, create one,
+// then paste it below and refresh. Remove it again before committing.
+try {
+  // Uncomment this line after you add a debug token in the Console for localhost:
+  // if (IS_LOCAL) self.FIREBASE_APPCHECK_DEBUG_TOKEN = 'PASTE_DEBUG_TOKEN_HERE';
+
+  if (IS_PROD_HOST || self.FIREBASE_APPCHECK_DEBUG_TOKEN) {
+    initializeAppCheck(app, {
+      provider: new ReCaptchaV3Provider('6Lc_LqkrAAAAAM7iXwzE4JwocEnFPrS3I1rxVot6'),
+      isTokenAutoRefreshEnabled: true
+    });
+  } else {
+    console.info('App Check skipped on localhost (no debug token).');
+  }
+} catch (e) {
+  console.warn('App Check init skipped:', e?.message || e);
+}
+
+// ---- Analytics (only on real hosts)
+let analytics = null;
+if (IS_PROD_HOST) {
+  try { analytics = getAnalytics(app); }
+  catch (e) { console.warn('Analytics init skipped:', e?.message || e); }
+}
+
 const auth = getAuth(app);
+// Optional: keep UI prompts in English (helps with consistent error strings)
+auth.languageCode = 'en';
 const db = getFirestore(app);
 const storage = getStorage(app);
 
@@ -1231,7 +1260,8 @@ function getErrorMessage(errorCode) {
         'auth/wrong-password': 'Incorrect password.',
         'auth/invalid-credential': 'Invalid email or password.',
         'auth/too-many-requests': 'Too many failed attempts. Please try again later.',
-        'auth/network-request-failed': 'Network error. Please check your connection.'
+        'auth/network-request-failed': 'Network error. Please check your connection.',
+        'auth/configuration-not-found': 'Auth is not fully set up for this domain. Make sure your domain is authorized in Firebase Auth and the API key referrer allowlist includes this origin.'
     };
     
     return errorMessages[errorCode] || 'An error occurred. Please try again.';
