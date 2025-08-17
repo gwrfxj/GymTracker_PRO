@@ -4,7 +4,7 @@
 
 // Import Firebase modules
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
-import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app-check.js";
+import { initializeAppCheck, ReCaptchaV3Provider, getToken } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app-check.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-analytics.js";
 import { 
     getAuth, 
@@ -16,30 +16,17 @@ import {
     signOut as firebaseSignOut,
     sendPasswordResetEmail
 } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
-import { 
-    getFirestore,
-    doc,
-    setDoc,
-    getDoc,
-    updateDoc,
-    deleteDoc,
-    collection,
-    addDoc,
-    query,
-    where,
-    orderBy,
-    limit,
-    getDocs,
-    serverTimestamp,
-    Timestamp,
-    onSnapshot
+import { initializeFirestore, collection, addDoc, query, where, orderBy, onSnapshot, 
+  deleteDoc, doc, getDocs, updateDoc, serverTimestamp, Timestamp, setDoc, getDoc, limit as qLimit
 } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+
 import {
-    getStorage,
-    ref,
-    uploadBytes,
-    getDownloadURL,
-    deleteObject
+  getStorage,
+  ref,
+  uploadBytes,           // <-- added
+  uploadBytesResumable,  // (kept in case used elsewhere)
+  getDownloadURL,
+  deleteObject
 } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-storage.js";
 
 // ===============================================
@@ -49,8 +36,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyBh37LFOyhCsyy5UOULCLL5_GUJbSHelJ4",
   authDomain: "gymtracker-pro-7ac65.firebaseapp.com",
   projectId: "gymtracker-pro-7ac65",
-  storageBucket: "gymtracker-pro-7ac65.appspot.com",
-  messagingSenderId: "321858828026",
+  storageBucket: "gymtracker-pro-7ac65.firebasestorage.app",
   appId: "1:321858828026:web:7deb1cbcc162d5bf2f7b43",
   measurementId: "G-2EZ01FJ9E2"
 };
@@ -66,42 +52,32 @@ const IS_PROD_HOST =
   /\.web\.app$/.test(HOST) ||
   /\.firebaseapp\.com$/.test(HOST);
 
-// ---- App Check (reCAPTCHA v3)
-// Only run App Check on production hosts, or when a debug token is explicitly set.
-// For local dev, go to Firebase Console → App Check → Debug tokens, create one,
-// then paste it below and refresh. Remove it again before committing.
-
-// Enable App Check debug on localhost automatically.
-// If you already created a Debug Token in Console → App Check → Debug tokens,
-// you can paste it into localStorage under the key "APPCHECK_DEBUG_TOKEN"
-// and it will be used automatically. Otherwise, we do NOT enable debug mode unless a token is present.
-if (IS_LOCAL) {
-  try {
-    const savedToken = localStorage.getItem('APPCHECK_DEBUG_TOKEN');
-    if (savedToken && savedToken.trim()) {
-      self.FIREBASE_APPCHECK_DEBUG_TOKEN = savedToken.trim();
-      console.info('[AppCheck] Using debug token from localStorage.');
-    } else {
-      console.info('[AppCheck] Localhost detected and no debug token found in localStorage. Skipping App Check locally.');
-    }
-  } catch (e) {
-    console.warn('[AppCheck] Could not read debug token from localStorage:', e?.message || e);
-  }
-}
+// ---- App Check (reCAPTCHA v3) — only on production hosts
 try {
-  // Uncomment this line after you add a debug token in the Console for localhost:
-  // if (IS_LOCAL) self.FIREBASE_APPCHECK_DEBUG_TOKEN = 'PASTE_DEBUG_TOKEN_HERE';
+  if (IS_PROD_HOST) {
+    // If you want to test with a debug token on prod-like hosts, set it manually in DevTools:
+    // localStorage.setItem('APPCHECK_DEBUG_TOKEN', '<your-debug-token>');
+    // self.FIREBASE_APPCHECK_DEBUG_TOKEN = localStorage.getItem('APPCHECK_DEBUG_TOKEN');
 
-  if (IS_PROD_HOST || self.FIREBASE_APPCHECK_DEBUG_TOKEN) {
-    initializeAppCheck(app, {
-      provider: new ReCaptchaV3Provider('6Lc_LqkrAAAAAM7iXwzE4JwocEnFPrS3I1rxVot6'),
+    const appCheck = initializeAppCheck(app, {
+      provider: new ReCaptchaV3Provider('6LcUV6krAAAAAL0pL1T_ZwZ5uS-V6LkhN9-UIVbO'),
       isTokenAutoRefreshEnabled: true
     });
+
+    // Helper to verify App Check token issuance
+    window.logAppCheck = async () => {
+      try {
+        const t = await getToken(appCheck, true);
+        console.log('[AppCheck] token (first 16):', t?.token?.slice(0, 16), '...');
+      } catch (err) {
+        console.warn('[AppCheck] getToken failed:', err?.message || err);
+      }
+    };
   } else {
-    console.info('App Check skipped on localhost (no debug token).');
+    console.info('[AppCheck] Skipped on localhost/dev host.');
   }
 } catch (e) {
-  console.warn('App Check init skipped:', e?.message || e);
+  console.warn('App Check init failed:', e?.message || e);
 }
 
 // ---- Analytics (only on real hosts)
@@ -114,8 +90,12 @@ if (IS_PROD_HOST) {
 const auth = getAuth(app);
 // Optional: keep UI prompts in English (helps with consistent error strings)
 auth.languageCode = 'en';
-const db = getFirestore(app);
-const storage = getStorage(app);
+const db = initializeFirestore(app, {
+  experimentalAutoDetectLongPolling: true,
+  useFetchStreams: false
+});
+const storage = getStorage(app, "gs://gymtracker-pro-7ac65.firebasestorage.app");
+Object.assign(window, { auth, db, storage, getAuth, getStorage, ref, getDownloadURL });
 
 // ===============================================
 // Global Variables
@@ -341,11 +321,13 @@ onAuthStateChanged(auth, async (user) => {
     }
 
     currentUser = user;
+    window.currentUser = user;
     await loadUserData();
     showMainDashboard();
     hideLoadingScreen();
   } else {
     currentUser = null;
+    window.currentUser = null;
     showAuthScreen();
     hideLoadingScreen();
   }
@@ -388,6 +370,8 @@ async function loadUserData() {
             
             // Load measurements
             await loadMeasurements();
+
+            await loadProgressPhotos();
         }
     } catch (error) {
         console.error('Error loading user data:', error);
@@ -810,7 +794,7 @@ async function loadWorkoutHistory() {
     
     try {
         const workoutsRef = collection(db, 'users', currentUser.uid, 'workouts');
-        const q = query(workoutsRef, orderBy('createdAt', 'desc'), limit(10));
+        const q = query(workoutsRef, orderBy('createdAt', 'desc'), qLimit(10));
         const querySnapshot = await getDocs(q);
         
         const historyList = document.getElementById('history-list');
@@ -1000,54 +984,124 @@ window.addProgressPhoto = () => {
     document.getElementById('photo-input').click();
 };
 
-window.handlePhotoUpload = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-    
-    try {
-        // Upload to Firebase Storage
-        const storageRef = ref(storage, `users/${currentUser.uid}/progress/${Date.now()}_${file.name}`);
-        const snapshot = await uploadBytes(storageRef, file);
-        const downloadURL = await getDownloadURL(snapshot.ref);
-        
-        // Save reference in Firestore
-        await addDoc(collection(db, 'users', currentUser.uid, 'progressPhotos'), { userId: currentUser.uid, 
-            url: downloadURL,
-            uploadedAt: serverTimestamp()
-        });
-        
-        await loadProgressPhotos();
-        showNotification('Photo uploaded successfully!', 'success');
-    } catch (error) {
-        console.error('Error uploading photo:', error);
-        showNotification('Error uploading photo', 'error');
+// Simple, reliable upload + preview using getDownloadURL
+window.handlePhotoUpload = async function handlePhotoUpload(evt) {
+  try {
+    const input = evt?.target || evt?.currentTarget || null;
+    const file = input?.files ? input.files[0] : null;
+    if (!file) {
+      console.warn("[UPLOAD] No file selected");
+      return;
     }
+    if (!auth.currentUser) {
+      console.warn("[UPLOAD] no auth user");
+      return;
+    }
+
+    // basic validation
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif'];
+    if (!allowed.includes(file.type)) {
+      showNotification('Only image files are allowed (jpg, png, webp, gif, heic).', 'error');
+      return;
+    }
+    const MAX_MB = 20;
+    if (file.size > MAX_MB * 1024 * 1024) {
+      showNotification(`Image too large. Max ${MAX_MB} MB.`, 'error');
+      return;
+    }
+
+    console.log("[UPLOAD] authed?", !!auth.currentUser, "uid:", auth.currentUser?.uid);
+    const userId = auth.currentUser.uid;
+
+    // Build a safe file name and full path
+    const original = file.name || 'photo';
+    const safeBase = original.replace(/[^\w.\-]+/g, '_').toLowerCase();
+    const fileName = `${Date.now()}_${safeBase}`;
+    const filePath = `users/${userId}/progress/${fileName}`;
+    console.log("[UPLOAD] type:", file.type, "size:", file.size, "path:", filePath);
+
+    const fileRef = ref(storage, filePath);
+
+    // IMPORTANT: include metadata so Storage rules that check contentType pass
+    const metadata = {
+      contentType: file.type,
+      cacheControl: 'public,max-age=3600'
+    };
+
+    // Upload and then get a download URL
+    const snapshot = await uploadBytes(fileRef, file, metadata);
+    console.log("[UPLOAD] success:", filePath);
+    const url = await getDownloadURL(snapshot.ref);
+
+// Optimistic preview while Firestore write completes
+    {
+    const container = document.getElementById('progress-photos');
+    if (container) {
+        const img = document.createElement('img');
+        img.src = url;
+        img.alt = file.name || 'Progress photo';
+        img.className = 'progress-photo';
+        container.prepend(img);
+    }
+    }
+    // Save metadata to Firestore
+    const photosRef = collection(db, `users/${userId}/progressPhotos`);
+    await addDoc(photosRef, {
+      name: original,
+      path: filePath,
+      url,
+      createdAt: Timestamp.now()
+    });
+
+    // Enforce max 20 photos (keeps the most recent 20)
+    const qSnap = await getDocs(query(photosRef, orderBy("createdAt", "desc")));
+    if (qSnap.size > 20) {
+      const excess = qSnap.docs.slice(20);
+      for (const d of excess) {
+        try { await deleteDoc(d.ref); } catch (_) {}
+      }
+    }
+
+    // Refresh UI
+    await loadProgressPhotos();
+    showNotification('Photo uploaded successfully!', 'success');
+  } catch (err) {
+    console.warn("[UPLOAD] storage error:", err?.code, err?.message);
+    showNotification('Upload failed. Check your connection and try again.', 'error');
+  }
 };
 
 async function loadProgressPhotos() {
-    if (!currentUser) return;
-    
-    try {
-        const photosRef = collection(db, 'users', currentUser.uid, 'progressPhotos');
-        const q = query(photosRef, orderBy('uploadedAt', 'desc'), limit(12));
-        const querySnapshot = await getDocs(q);
-        
-        const photoGrid = document.getElementById('photo-grid');
-        photoGrid.innerHTML = '';
-        
-        querySnapshot.forEach((doc) => {
-            const photo = doc.data();
-            const photoItem = document.createElement('div');
-            photoItem.className = 'photo-item';
-            photoItem.innerHTML = `
-                <img src="${photo.url}" alt="Progress photo">
-                <div class="photo-date">${photo.uploadedAt?.toDate ? photo.uploadedAt.toDate().toLocaleDateString() : 'Recent'}</div>
-            `;
-            photoGrid.appendChild(photoItem);
-        });
-    } catch (error) {
-        console.error('Error loading photos:', error);
+  if (!auth.currentUser) return;
+  const userId = auth.currentUser.uid;
+  const photosRef = collection(db, `users/${userId}/progressPhotos`);
+  const qSnap = await getDocs(query(photosRef, orderBy('createdAt', 'desc')));
+
+  const container = document.getElementById('progress-photos');
+  if (!container) return;
+  container.innerHTML = '';
+
+  for (const d of qSnap.docs) {
+    const data = d.data() || {};
+    // NOTE: getDownloadURL() will fail with "storage/unauthorized" if Storage rules reject reads or App Check enforcement is ON without a valid token.
+    let url = await resolveStorageURL(data.url || data.path);
+
+    // Backfill the doc with the resolved URL for faster next loads
+    if (url && url !== data.url) {
+      try { await updateDoc(d.ref, { url }); } catch (_) {}
     }
+
+    // Only render if we have a valid HTTPS URL. Never fall back to a raw Storage path.
+    const img = document.createElement('img');
+    if (!url || !/^https?:\/\//i.test(url)) {
+      console.warn('[photos] skipping render; unresolved URL for', data.path || data.url);
+      continue;
+    }
+    img.src = url;
+    img.alt = data.name || 'Progress photo';
+    img.className = 'progress-photo';
+    container.appendChild(img);
+  }
 }
 
 // Measurements
@@ -1091,7 +1145,7 @@ async function loadMeasurements() {
     
     try {
         const measurementsRef = collection(db, 'users', currentUser.uid, 'measurements');
-        const q = query(measurementsRef, orderBy('date', 'desc'), limit(1));
+        const q = query(measurementsRef, orderBy('date', 'desc'), qLimit(1));
         const querySnapshot = await getDocs(q);
         
         if (!querySnapshot.empty) {
@@ -1166,6 +1220,55 @@ function displayExercises(category) {
 
 // Search functionality
 document.addEventListener('DOMContentLoaded', () => {
+  // Wire up hidden file input for progress photos
+  const _photoInput = document.getElementById('photo-input');
+    // ---- Auto-upgrade any <img src="users/..."> to signed HTTPS URLs
+  function needsUpgrade(src) {
+    return src && !/^https?:\/\//i.test(src) && /(\/)?users\//i.test(src);
+  }
+
+  async function upgradeImg(el) {
+    try {
+      const raw = el.getAttribute('src');
+      if (!needsUpgrade(raw)) return;
+      const url = await resolveStorageURL(raw);
+      if (url) {
+        el.setAttribute('src', url);
+        console.log('[photos] upgraded raw src -> URL', raw, '=>', url.slice(0, 60) + '…');
+      }
+    } catch (e) {
+      console.warn('[photos] upgradeImg failed', e?.message || e);
+    }
+  }
+
+  // Initial pass over existing images
+  (async () => {
+    const imgs = Array.from(document.querySelectorAll('img'));
+    for (const img of imgs) {
+      await upgradeImg(img);
+    }
+  })();
+
+  // Observe DOM for any new images and upgrade them too
+  const mo = new MutationObserver((muts) => {
+    for (const m of muts) {
+      if (m.type === 'childList') {
+        m.addedNodes.forEach((node) => {
+          if (node.nodeType === 1) {
+            if (node.tagName === 'IMG') upgradeImg(node);
+            node.querySelectorAll && node.querySelectorAll('img').forEach(upgradeImg);
+          }
+        });
+      } else if (m.type === 'attributes' && m.target && m.attributeName === 'src' && m.target.tagName === 'IMG') {
+        upgradeImg(m.target);
+      }
+    }
+  });
+  mo.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] });
+  if (_photoInput && !_photoInput.dataset.wired) {
+    _photoInput.addEventListener('change', window.handlePhotoUpload);
+    _photoInput.dataset.wired = '1';
+  }
     const searchInput = document.getElementById('exercise-search');
     if (searchInput) {
         searchInput.addEventListener('input', (e) => {
@@ -1208,6 +1311,25 @@ document.addEventListener('DOMContentLoaded', () => {
 // ===============================================
 // Utility Functions
 // ===============================================
+// Resolve a Storage path (e.g. "users/<uid>/.../file.jpg") to a public HTTPS URL
+// Resolve a Storage path (e.g. "users/<uid>/.../file.jpg") to a public HTTPS URL
+async function resolveStorageURL(pathOrUrl) {
+  try {
+    if (!pathOrUrl) return null;
+    // Already a URL? return as-is.
+    if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl;
+
+    // Normalize: strip any leading "/" so Storage ref treats it as an object path
+    const normalized = String(pathOrUrl).replace(/^\/+/, '');
+    const r = ref(storage, normalized);
+    const u = await getDownloadURL(r);
+    return u;
+  } catch (e) {
+    console.warn('[photos] resolveStorageURL failed for', pathOrUrl, e?.message || e);
+    return null;
+  }
+}
+
 function showNotification(message, type = 'info') {
     // Create notification element
     const notification = document.createElement('div');
@@ -1372,3 +1494,14 @@ window.toggleProfile = () => {
 // Initialize App
 // ===============================================
 console.log('GymTracker Pro initialized! 🐢💪');
+
+// ---- TEMP: auth status logger (prints for ~60s)
+{
+  let _i = 0;
+  const _t = setInterval(() => {
+    _i++;
+    const u = auth.currentUser;
+    console.log('[AUTH]', !!u, u?.uid || null);
+    if (_i > 30) clearInterval(_t);
+  }, 2000);
+}
