@@ -53,7 +53,7 @@ const IS_PROD_HOST =
     /\.web\.app$/.test(HOST) ||
     /\.firebaseapp\.com$/.test(HOST);
 
-// ---- App Check (reCAPTCHA v3) — only on production hosts
+// ---- App Check (reCAPTCHA v3) â€” only on production hosts
 try {
     if (IS_PROD_HOST) {
         // If you want to test with a debug token on prod-like hosts, set it manually in DevTools:
@@ -312,7 +312,7 @@ onAuthStateChanged(auth, async (user) => {
             const userRef = doc(db, "users", user.uid);
             const snap = await getDoc(userRef);
 
-            // ✅ Fix: if doc exists but missing userId, patch it
+            // âœ… Fix: if doc exists but missing userId, patch it
             if (snap.exists() && !snap.data().userId) {
                 await updateDoc(userRef, { userId: user.uid });
                 console.log("[Fix] Added missing userId to existing profile");
@@ -697,7 +697,7 @@ function displayExercise(exercise) {
                     <span>${set.weight} lbs</span>
                     <span>${set.reps} reps</span>
                     <span class="set-status ${set.completed ? 'completed' : ''}">
-                        ${set.completed ? '✓' : '○'}
+                        ${set.completed ? 'âœ“' : 'â—‹'}
                     </span>
                 </div>
             `).join('')}
@@ -776,7 +776,7 @@ window.finishWorkout = async () => {
         await loadWorkoutHistory();
         await loadUserData();
 
-        showNotification('Great workout! Keep up the amazing work! 🔥', 'success');
+        showNotification('Great workout! Keep up the amazing work! ðŸ”¥', 'success');
     } catch (error) {
         console.error('Error saving workout:', error);
         showNotification('Error saving workout. Please try again.', 'error');
@@ -889,12 +889,10 @@ async function loadRoutines() {
 
 function displayRoutines() {
     const routinesList = document.getElementById('routines-list');
-    if (!routinesList) return;
     routinesList.innerHTML = '';
 
-    if (!Array.isArray(userRoutines) || userRoutines.length === 0) {
-        routinesList.innerHTML =
-            '<p style="color: rgba(255,255,255,0.5);">No routines yet. Create your first routine!</p>';
+    if (userRoutines.length === 0) {
+        routinesList.innerHTML = '<p style="color: rgba(255,255,255,0.5);">No routines yet. Create your first routine!</p>';
         return;
     }
 
@@ -902,22 +900,14 @@ function displayRoutines() {
         const routineItem = document.createElement('div');
         routineItem.className = 'routine-item';
         routineItem.innerHTML = `
-      <div class="routine-name">${routine.name}</div>
-      <div class="routine-exercises">${(routine.exercises || []).length} exercises</div>
-    `;
+            <div class="routine-name">${routine.name}</div>
+            <div class="routine-exercises">${routine.exercises.length} exercises</div>
+        `;
         routineItem.onclick = () => startRoutineWorkout(routine);
-        routineItem.setAttribute('data-routine-id', routine.id || '');
+
         routinesList.appendChild(routineItem);
     });
-
-    // after initial render, add edit/delete controls
-    try {
-        enhanceRoutineList();
-    } catch (e) {
-        console.warn('enhanceRoutineList() failed:', e);
-    }
 }
-
 
 function startRoutineWorkout(routine) {
     closeRoutinesModal();
@@ -960,7 +950,7 @@ window.addPR = async () => {
         });
 
         await loadPRs();
-        showNotification('Personal Record added! 🏆', 'success');
+        showNotification('Personal Record added! ðŸ†', 'success');
     } catch (error) {
         console.error('Error adding PR:', error);
         showNotification('Error adding PR', 'error');
@@ -969,12 +959,12 @@ window.addPR = async () => {
 
 async function loadPRs() {
     if (!currentUser) return;
+
     try {
         const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
         const prs = userDoc.data()?.stats?.personalRecords || {};
 
         const prsList = document.getElementById('prs-list');
-        if (!prsList) return;
         prsList.innerHTML = '';
 
         if (Object.keys(prs).length === 0) {
@@ -986,23 +976,16 @@ async function loadPRs() {
             const prItem = document.createElement('div');
             prItem.className = 'pr-item';
             prItem.innerHTML = `
-        <div class="pr-exercise">${exercise}</div>
-        <div class="pr-value">${record.weight} lbs × ${record.reps}</div>
-        <div class="pr-date">${record.date?.toDate ? record.date.toDate().toLocaleDateString() : 'Recent'}</div>
-        <div class="pr-actions">
-          <button class="pr-action-btn edit" title="Edit">✎</button>
-          <button class="pr-action-btn delete" title="Delete">✕</button>
-        </div>
-      `;
-            prItem.querySelector('.edit')?.addEventListener('click', () => editPR(exercise));
-            prItem.querySelector('.delete')?.addEventListener('click', () => deletePR(exercise));
+                <div class="pr-exercise">${exercise}</div>
+                <div class="pr-value">${record.weight} lbs Ã— ${record.reps}</div>
+                <div class="pr-date">${record.date?.toDate ? record.date.toDate().toLocaleDateString() : 'Recent'}</div>
+            `;
             prsList.appendChild(prItem);
         });
     } catch (error) {
         console.error('Error loading PRs:', error);
     }
 }
-
 
 // Photo Progress
 window.addProgressPhoto = () => choosePhotoSource();
@@ -1262,7 +1245,7 @@ function displayExercises(category) {
             <div class="exercise-card-muscles">${exercise.muscles.join(', ')}</div>
             <div class="exercise-card-difficulty">
                 ${Array.from({ length: 5 }, (_, i) =>
-            `<span class="difficulty-star ${i < exercise.difficulty ? 'filled' : ''}">★</span>`
+            `<span class="difficulty-star ${i < exercise.difficulty ? 'filled' : ''}">â˜…</span>`
         ).join('')}
             </div>
         `;
@@ -1290,7 +1273,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const url = await resolveStorageURL(raw);
             if (url) {
                 el.setAttribute('src', url);
-                console.log('[photos] upgraded raw src -> URL', raw, '=>', url.slice(0, 60) + '…');
+                console.log('[photos] upgraded raw src -> URL', raw, '=>', url.slice(0, 60) + 'â€¦');
             }
         } catch (e) {
             console.warn('[photos] upgradeImg failed', e?.message || e);
@@ -1358,7 +1341,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="exercise-card-muscles">${exercise.muscles.join(', ')}</div>
             <div class="exercise-card-difficulty">
                 ${Array.from({ length: 5 }, (_, i) =>
-                    `<span class="difficulty-star ${i < exercise.difficulty ? 'filled' : ''}">★</span>`
+                    `<span class="difficulty-star ${i < exercise.difficulty ? 'filled' : ''}">â˜…</span>`
                 ).join('')}
             </div>
         `;
@@ -1378,15 +1361,13 @@ document.addEventListener('DOMContentLoaded', () => {
             e.target.setAttribute('autocomplete', 'off');
         });
     });
-
     // Add viewport meta tag if not present
     if (!document.querySelector('meta[name="viewport"]')) {
         const viewport = document.createElement('meta');
         viewport.name = 'viewport';
         viewport.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
         document.head.appendChild(viewport);
-    }
-});
+    });
 
 // ===============================================
 // Utility Functions
@@ -1410,7 +1391,6 @@ async function resolveStorageURL(pathOrUrl) {
     }
 }
 
-// Enhanced notification for mobile
 function showNotification(message, type = 'info') {
     // Remove any existing notifications first
     const existingNotifications = document.querySelectorAll('.notification');
@@ -1553,7 +1533,7 @@ window.toggleProfile = () => {
 // ===============================================
 // Initialize App
 // ===============================================
-console.log('GymTracker Pro initialized! 🐢💪');
+console.log('GymTracker Pro initialized! ðŸ¢ðŸ’ª');
 
 // ---- TEMP: auth status logger (prints for ~60s)
 {
@@ -1564,4 +1544,4 @@ console.log('GymTracker Pro initialized! 🐢💪');
         console.log('[AUTH]', !!u, u?.uid || null);
         if (_i > 30) clearInterval(_t);
     }, 2000);
-}
+} s
