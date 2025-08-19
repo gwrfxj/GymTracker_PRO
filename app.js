@@ -1548,3 +1548,21 @@ console.log('GymTracker Pro initialized! 🐢💪');
         if (_i > 30) clearInterval(_t);
     }, 2000);
 }
+
+/** Debug banner for catching errors so the page doesn't look blank */
+(function attachDebugErrorBanner(){
+  function showBanner(msg){
+    try{
+      const el = document.getElementById('dev-error-banner');
+      const text = document.getElementById('dev-error-text');
+      if(el && text){
+        text.textContent = String(msg || 'Unknown error');
+        el.style.display = 'block';
+      } else {
+        console.error('[DebugBanner]', msg);
+      }
+    }catch{}
+  }
+  window.addEventListener('error', (e)=> showBanner(e?.message || e));
+  window.addEventListener('unhandledrejection', (e)=> showBanner(e?.reason?.message || e?.reason || e));
+})();
