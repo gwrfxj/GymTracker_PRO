@@ -7,10 +7,7 @@
   <title>GymTracker Pro</title>
 
   <!-- Favicon -->
-  <link
-    rel="icon"
-    type="image/svg+xml"
-    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='50%' x='50%' text-anchor='middle' font-size='60'>🐢</text></svg>"
+  <link rel="icon" type="image/png" href="turtle-favicon.png" /><text y='50%' x='50%' text-anchor='middle' font-size='60'><img src="turtle-small.png" alt="GymTracker Turtle" class="brand-logo" /></text></svg>"
   />
 
   <!-- Font Awesome for icons -->
@@ -28,7 +25,7 @@
     <!-- Loading Screen -->
     <div id="loading-screen" class="loading-screen">
       <div class="loading-content">
-        <div class="turtle-loader">🐢</div>
+        <div class="turtle-loader"><img src="turtle-small.png" alt="GymTracker Turtle" class="brand-logo" /></div>
         <h2>GymTracker Pro</h2>
         <div class="loading-bar">
           <div class="loading-progress"></div>
@@ -40,18 +37,19 @@
     <!-- Auth Container -->
     <div id="auth-container" class="auth-container" style="display: none;">
       <div class="auth-card">
+  <div class="login-logo"><img src="turtle-mascot.png" alt="GymTracker Mascot" class="mascot-img" /></div>
         <!-- Animated Background Elements -->
         <div class="animated-bg">
           <div class="floating-dumbbell">🏋️</div>
-          <div class="floating-muscle">💪</div>
+          <div class="floating-muscle"><img src="turtle-small.png" alt="GymTracker Turtle" class="brand-logo" /></div>
           <div class="floating-fire">🔥</div>
         </div>
 
         <!-- Logo Section -->
         <div class="auth-logo">
           <div class="logo-mascot">
-            <span class="turtle-emoji">🐢</span>
-            <div class="muscle-arms">💪</div>
+            <span class="turtle-emoji"><img src="turtle-small.png" alt="GymTracker Turtle" class="brand-logo" /></span>
+            <div class="muscle-arms"><img src="turtle-small.png" alt="GymTracker Turtle" class="brand-logo" /></div>
           </div>
           <h1 class="app-title">
             <span class="title-gym">GYM</span>
@@ -138,7 +136,7 @@
       <header class="dashboard-header">
         <div class="header-left">
           <div class="logo-small">
-            <span class="turtle-small">🐢</span>
+            <span class="turtle-small"><img src="turtle-small.png" alt="GymTracker Turtle" class="brand-logo" /></span>
             <span class="brand-name">GymTracker Pro</span>
           </div>
         </div>
@@ -239,7 +237,7 @@
           </button>
           <div class="workout-title">
             <h1>WORKOUT ZONE</h1>
-            <div class="turtle-mascot"><span class="buff-turtle">🐢💪</span></div>
+            <div class="turtle-mascot"><span class="buff-turtle"><img src="turtle-small.png" alt="GymTracker Turtle" class="brand-logo" /><img src="turtle-small.png" alt="GymTracker Turtle" class="brand-logo" /></span></div>
           </div>
           <div class="workout-date"><span id="current-date"></span></div>
         </div>
@@ -658,5 +656,10 @@
 
   <!-- JavaScript Module -->
   <script type="module" src="app.js"></script>
+
+  <div id="dev-error-banner" style="display:none; position:fixed; left:0; right:0; bottom:0; background:#7f1d1d; color:#fff; padding:10px 14px; z-index:9999; font-family:ui-sans-serif,system-ui;">
+    <strong>Script error:</strong> <span id="dev-error-text"></span>
+  </div>
 </body>
+
 </html>
