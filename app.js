@@ -18,7 +18,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
 import {
     initializeFirestore, collection, addDoc, query, where, orderBy, onSnapshot,
-    deleteDoc, doc, getDocs, updateDoc, serverTimestamp, Timestamp, setDoc, getDoc, deleteField, limit as qLimit
+    deleteDoc, doc, getDocs, updateDoc, serverTimestamp, Timestamp, setDoc, getDoc, limit as qLimit
 } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 
 import {
@@ -842,9 +842,7 @@ async function loadWorkoutHistory() {
 window.showRoutines = () => {
     document.getElementById('routines-modal').style.display = 'flex';
     displayRoutines();
-}
-// after initial render, add edit/delete controls
-try{ enhanceRoutineList(); }catch(_){ };
+};
 
 window.closeRoutinesModal = () => {
     document.getElementById('routines-modal').style.display = 'none';
@@ -884,35 +882,35 @@ async function loadRoutines() {
         });
 
         displayRoutines();
-    }
-// after initial render, add edit/delete controls
-try{ enhanceRoutineList(); }catch(_){ } catch (error) {
+    } catch (error) {
         console.error('Error loading routines:', error);
     }
 }
 
+
 function displayRoutines() {
-    // will call enhanceRoutineList at the end
+  const routinesList = document.getElementById('routines-list');
+  if (!routinesList) return;
+  routinesList.innerHTML = '';
 
-    const routinesList = document.getElementById('routines-list');
-    routinesList.innerHTML = '';
+  if (!Array.isArray(userRoutines) || userRoutines.length === 0) {
+    routinesList.innerHTML = '<p style="color: rgba(255,255,255,0.5);">No routines yet. Create your first routine!</p>';
+    return;
+  }
 
-    if (userRoutines.length === 0) {
-        routinesList.innerHTML = '<p style="color: rgba(255,255,255,0.5);">No routines yet. Create your first routine!</p>';
-        return;
-    }
+  userRoutines.forEach(routine => {
+    const routineItem = document.createElement('div');
+    routineItem.className = 'routine-item';
+    routineItem.innerHTML = `
+      <div class="routine-name">${routine.name}</div>
+      <div class="routine-exercises">${(routine.exercises||[]).length} exercises</div>
+    `;
+    routineItem.onclick = () => startRoutineWorkout(routine);
+    routineItem.setAttribute('data-routine-id', routine.id || '');
+    routinesList.appendChild(routineItem);
+  });
 
-    userRoutines.forEach(routine => {
-        const routineItem = document.createElement('div');
-        routineItem.className = 'routine-item';
-        routineItem.innerHTML = `
-            <div class="routine-name">${routine.name}</div>
-            <div class="routine-exercises">${routine.exercises.length} exercises</div>
-        `;
-        routineItem.onclick = () => startRoutineWorkout(routine);
-
-        routinesList.appendChild(routineItem);
-    });
+  try { enhanceRoutineList(); } catch (e) {}
 }
 
 function startRoutineWorkout(routine) {
@@ -963,39 +961,43 @@ window.addPR = async () => {
     }
 };
 
+async 
 async function loadPRs() {
-    if (!currentUser) return;
+  if (!currentUser) return;
+  try {
+    const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+    const prs = userDoc.data()?.stats?.personalRecords || {};
 
-    try {
-        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-        const prs = userDoc.data()?.stats?.personalRecords || {};
+    const prsList = document.getElementById('prs-list');
+    if (!prsList) return;
+    prsList.innerHTML = '';
 
-        const prsList = document.getElementById('prs-list');
-        prsList.innerHTML = '';
-
-        if (Object.keys(prs).length === 0) {
-            prsList.innerHTML = '<p style="color: rgba(255,255,255,0.5);">No personal records yet. Set your first PR!</p>';
-            return;
-        }
-
-        Object.entries(prs).forEach(([exercise, record]) => {
-            const prItem = document.createElement('div');
-            prItem.className = 'pr-item';
-            prItem.innerHTML = `
-  <div class="pr-exercise">${exercise}</div>
-  <div class="pr-value">${record.weight} lbs × ${record.reps}</div>
-  <div class="pr-date">${record.date?.toDate ? record.date.toDate().toLocaleDateString() : 'Recent'}</div>
-  <div class="pr-actions">
-    <button class="pr-action-btn edit" title="Edit" onclick="editPR('${'${exercise}'.replace(/'/g, "\'")}')">✎</button>
-    <button class="pr-action-btn delete" title="Delete" onclick="deletePR('${'${exercise}'.replace(/'/g, "\'")}')">✕</button>
-  </div>
-`;
-            prsList.appendChild(prItem);
-        });
-    } catch (error) {
-        console.error('Error loading PRs:', error);
+    if (Object.keys(prs).length === 0) {
+      prsList.innerHTML = '<p style="color: rgba(255,255,255,0.5);">No personal records yet. Set your first PR!</p>';
+      return;
     }
+
+    Object.entries(prs).forEach(([exercise, record]) => {
+      const prItem = document.createElement('div');
+      prItem.className = 'pr-item';
+      prItem.innerHTML = `
+        <div class="pr-exercise">${exercise}</div>
+        <div class="pr-value">${record.weight} lbs × ${record.reps}</div>
+        <div class="pr-date">${record.date?.toDate ? record.date.toDate().toLocaleDateString() : 'Recent'}</div>
+        <div class="pr-actions">
+          <button class="pr-action-btn edit" title="Edit">✎</button>
+          <button class="pr-action-btn delete" title="Delete">✕</button>
+        </div>
+      `;
+      prItem.querySelector('.edit')?.addEventListener('click', () => editPR(exercise));
+      prItem.querySelector('.delete')?.addEventListener('click', () => deletePR(exercise));
+      prsList.appendChild(prItem);
+    });
+  } catch (error) {
+    console.error('Error loading PRs:', error);
+  }
 }
+
 
 // Photo Progress
 window.addProgressPhoto = () => choosePhotoSource();
@@ -1149,18 +1151,9 @@ async function loadProgressPhotos() {
             continue;
         }
         img.src = url;
-img.alt = data.name || 'Progress photo';
-img.className = 'progress-photo';
-const wrap = document.createElement('div');
-wrap.className = 'photo-item';
-wrap.appendChild(img);
-const delBtn = document.createElement('button');
-delBtn.className = 'photo-delete-btn';
-delBtn.innerHTML = '✕';
-delBtn.title = 'Delete photo';
-delBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteProgressPhoto(d.id, data.path || data.url); });
-wrap.appendChild(delBtn);
-container.appendChild(wrap);
+        img.alt = data.name || 'Progress photo';
+        img.className = 'progress-photo';
+        container.appendChild(img);
     }
 }
 
@@ -1567,339 +1560,3 @@ console.log('GymTracker Pro initialized! 🐢💪');
         if (_i > 30) clearInterval(_t);
     }, 2000);
 }
-
-/** Delete a progress photo (both Storage object and Firestore doc) */
-async function deleteProgressPhoto(docId, storagePathOrUrl){
-  try{
-    if(!auth.currentUser) return;
-    if(!confirm('Delete this progress photo?')) return;
-    // best effort storage deletion
-    try{
-      if(storagePathOrUrl){
-        const sref = ref(storage, storagePathOrUrl);
-        await deleteObject(sref);
-      }
-    }catch(e){ console.warn('[photos] deleteObject failed', e?.message || e); }
-    await deleteDoc(doc(db, `users/${auth.currentUser.uid}/progressPhotos/${docId}`));
-    await loadProgressPhotos();
-  }catch(e){
-    console.error('deleteProgressPhoto failed', e);
-    alert('Failed to delete photo.');
-  }
-}
-
-
-/** Edit PR (weight/reps) for a given exercise key */
-async function editPR(exercise){
-  try{
-    if(!currentUser) return;
-    const weight = prompt(`New weight for ${exercise} (lbs):`);
-    if(weight === null) return;
-    const reps = prompt(`New reps for ${exercise}:`);
-    if(reps === null) return;
-    const userRef = doc(db, 'users', currentUser.uid);
-    await updateDoc(userRef, {
-      [`stats.personalRecords.${exercise}`]: { weight: parseFloat(weight), reps: parseInt(reps,10), date: serverTimestamp() }
-    });
-    await loadPRs();
-    if(window.updateHomeStats) await window.updateHomeStats();
-  }catch(e){
-    console.error('editPR failed', e);
-    alert('Failed to update PR.');
-  }
-}
-
-/** Delete PR for exercise key */
-async function deletePR(exercise){
-  try{
-    if(!currentUser) return;
-    if(!confirm(`Delete PR for ${exercise}?`)) return;
-    const userRef = doc(db, 'users', currentUser.uid);
-    await updateDoc(userRef, { [`stats.personalRecords.${exercise}`]: deleteField() });
-    await loadPRs();
-    if(window.updateHomeStats) await window.updateHomeStats();
-  }catch(e){
-    console.error('deletePR failed', e);
-    alert('Failed to delete PR.');
-  }
-}
-
-
-// Add edit/delete controls to routine cards if missing
-function enhanceRoutineList(){
-  try{
-    const list = document.getElementById('routines-list');
-    if(!list) return;
-    list.querySelectorAll('[data-routine-id]').forEach(card => {
-      if(card.querySelector('.pr-action-btn')) return;
-      const rid = card.getAttribute('data-routine-id');
-      const controls = document.createElement('div');
-      controls.className = 'pr-actions';
-      controls.innerHTML = `<button class="pr-action-btn edit" title="Edit Routine" onclick="editRoutine('${rid}')">✎</button>
-<button class="pr-action-btn delete" title="Delete Routine" onclick="deleteRoutine('${rid}')">✕</button>`;
-      card.appendChild(controls);
-    });
-  }catch(e){ console.warn('enhanceRoutineList failed', e); }
-}
-
-async function editRoutine(routineId){
-  try{
-    if(!currentUser) return;
-    const rRef = doc(db, 'users', currentUser.uid, 'routines', routineId);
-    const snap = await getDoc(rRef);
-    if(!snap.exists()) return;
-    const cur = (snap.data().name || '').trim();
-    const name = prompt('Rename routine:', cur);
-    if(!name || !name.trim()) return;
-    await updateDoc(rRef, { name: name.trim() });
-    await displayRoutines?.();
-    enhanceRoutineList();
-  }catch(e){ console.error('editRoutine failed', e); alert('Failed to edit routine.'); }
-}
-
-async function deleteRoutine(routineId){
-  try{
-    if(!currentUser) return;
-    if(!confirm('Delete this routine?')) return;
-    await deleteDoc(doc(db, 'users', currentUser.uid, 'routines', routineId));
-    await displayRoutines?.();
-  }catch(e){ console.error('deleteRoutine failed', e); alert('Failed to delete routine.'); }
-}
-
-
-
-// ---- Exercise Library dropdowns & presets ----
-const SUBCATS = {
-  chest: ['upper chest','mid chest','lower chest','inner chest','outer chest'],
-  back: ['lats','upper back','lower back','mid back'],
-  shoulders: ['front delts','side delts','rear delts'],
-  arms: ['biceps','triceps','forearms'],
-  legs: ['quads','hamstrings','glutes','calves','adductors','abductors'],
-  core: ['abs','obliques','lower back']
-};
-
-function musclesMatchSubcat(muscles, sub) {
-  const target = (sub||'').toLowerCase();
-  return (muscles||[]).some(m => (m||'').toLowerCase().includes(target));
-}
-
-function setupLibraryDropdowns(){
-  const partSel = document.getElementById('body-part-select');
-  const subSel = document.getElementById('subcategory-select');
-  if(!partSel || !subSel) return;
-  function refresh(){
-    subSel.innerHTML = '<option value="all">All Types</option>';
-    const part = partSel.value;
-    const arr = SUBCATS[part] || null;
-    if(arr){
-      arr.forEach(s => {
-        const opt = document.createElement('option');
-        opt.value = s; opt.textContent = s.replace(/\b\w/g, c=>c.toUpperCase());
-        subSel.appendChild(opt);
-      });
-      subSel.disabled = false;
-    } else {
-      subSel.disabled = true;
-    }
-    renderLibraryGrid();
-  }
-  partSel.addEventListener('change', refresh);
-  subSel.addEventListener('change', renderLibraryGrid);
-  refresh();
-}
-
-function renderLibraryGrid(){
-  const grid = document.getElementById('exercises-grid');
-  if(!grid || typeof defaultExercises === 'undefined') return;
-  grid.innerHTML = '';
-  const q = (document.getElementById('exercise-search')?.value || '').toLowerCase();
-  const part = document.getElementById('body-part-select')?.value || 'all';
-  const sub = document.getElementById('subcategory-select')?.value || 'all';
-  let filtered = defaultExercises.slice();
-  if(part !== 'all') filtered = filtered.filter(e => (e.category||'').toLowerCase() === part);
-  if(sub !== 'all') filtered = filtered.filter(e => musclesMatchSubcat(e.muscles, sub));
-  if(q) filtered = filtered.filter(e => e.name.toLowerCase().includes(q) || (e.muscles||[]).some(m => m.toLowerCase().includes(q)));
-  filtered.forEach(exercise => {
-    const card = document.createElement('div');
-    card.className = 'exercise-card';
-    card.innerHTML = \`
-      <div class="exercise-card-header">
-        <div class="exercise-card-title">\${exercise.name}</div>
-        <div class="exercise-card-category">\${exercise.category||''}</div>
-      </div>
-      <div class="exercise-card-muscles">\${(exercise.muscles||[]).join(', ')}</div>
-    \`;
-    card.addEventListener('click', () => {
-      // Auto-start workout if needed
-      if(!window.currentWorkout || !window.currentWorkout.startTime){ startWorkout(); }
-      const nameInput = document.getElementById('exercise-name');
-      if(nameInput){ nameInput.value = exercise.name; nameInput.setAttribute('readonly','readonly'); }
-      addExercise();
-      // unlock name when modal closes
-      const modal = document.getElementById('exercise-modal');
-      const unlock = () => nameInput && nameInput.removeAttribute('readonly');
-      modal && modal.addEventListener('transitionend', unlock, { once:true });
-    });
-    grid.appendChild(card);
-  });
-}
-
-// hook search box
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('exercise-search')?.addEventListener('input', renderLibraryGrid);
-  try{ setupLibraryDropdowns(); }catch{}
-});
-
-
-
-// ---- Charts: measurements & weight ----
-let MEAS_CHART, WEIGHT_CHART;
-
-async function fetchAllMeasurements(days=365){
-  if(!currentUser) return [];
-  const refCol = collection(db, 'users', currentUser.uid, 'measurements');
-  const qSnap = await getDocs(query(refCol, orderBy('date','desc')));
-  const out = [];
-  qSnap.forEach(docSnap => {
-    const d = docSnap.data();
-    const when = d.date?.toDate ? d.date.toDate() : (d.date ? new Date(d.date) : null);
-    if(when) out.push({ ...d, _date: when });
-  });
-  const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-days);
-  return out.filter(x=>x._date && x._date>=cutoff).sort((a,b)=>a._date-b._date);
-}
-
-function safeVal(v){ return (v===null||v===undefined||v==='') ? 'N/A' : v; }
-
-function renderMeasurementsTable(rows){
-  const host = document.getElementById('measurements-table'); if(!host) return;
-  if(!rows.length){ host.innerHTML = '<p style="opacity:.6">No measurement history yet.</p>'; return; }
-  let html = '<table><thead><tr><th>Date</th><th>Weight</th><th>Chest</th><th>Waist</th><th>Arms</th><th>Thighs</th><th>Calves</th></tr></thead><tbody>';
-  rows.slice(-30).forEach(r => {
-    html += \`<tr>
-      <td>\${r._date.toLocaleDateString()}</td>
-      <td>\${safeVal(r.weight)}</td>
-      <td>\${safeVal(r.chest)}</td>
-      <td>\${safeVal(r.waist)}</td>
-      <td>\${safeVal(r.arms)}</td>
-      <td>\${safeVal(r.thighs)}</td>
-      <td>\${safeVal(r.calves)}</td>
-    </tr>\`;
-  });
-  html += '</tbody></table>';
-  host.innerHTML = html;
-}
-
-async function renderMeasurementsChart(){
-  const canvas = document.getElementById('measurements-chart-canvas'); if(!canvas) return;
-  const rows = await fetchAllMeasurements(365);
-  renderMeasurementsTable(rows);
-  const labels = rows.map(x => x._date.toLocaleDateString());
-  const chest = rows.map(x => x.chest ?? null);
-  const waist = rows.map(x => x.waist ?? null);
-  const arms  = rows.map(x => x.arms ?? null);
-  const thighs= rows.map(x => x.thighs ?? null);
-  const calves= rows.map(x => x.calves ?? null);
-  if(MEAS_CHART) MEAS_CHART.destroy();
-  MEAS_CHART = new Chart(canvas.getContext('2d'), {
-    type:'line',
-    data:{ labels, datasets:[
-      { label:'Chest', data: chest, spanGaps:true },
-      { label:'Waist', data: waist, spanGaps:true },
-      { label:'Arms', data: arms, spanGaps:true },
-      { label:'Thighs', data: thighs, spanGaps:true },
-      { label:'Calves', data: calves, spanGaps:true },
-    ]},
-    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:true} } }
-  });
-}
-
-function aggregateHeaviestPerDay(rows){
-  const map = new Map();
-  rows.forEach(r => {
-    if(r.weight==null) return;
-    const key = r._date.toISOString().slice(0,10);
-    map.set(key, Math.max(map.get(key)||0, Number(r.weight)));
-  });
-  return Array.from(map.entries()).sort((a,b)=>a[0].localeCompare(b[0])).map(([date,weight])=>({date,weight}));
-}
-
-async function renderWeightChart(rangeDays=30){
-  const canvas = document.getElementById('weight-chart-canvas'); if(!canvas) return;
-  const rows = await fetchAllMeasurements(365);
-  const agg = aggregateHeaviestPerDay(rows).filter(r => {
-    const d = new Date(r.date);
-    const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-rangeDays);
-    return d >= cutoff;
-  });
-  const labels = agg.map(x => new Date(x.date).toLocaleDateString());
-  const data = agg.map(x => x.weight);
-  if(WEIGHT_CHART) WEIGHT_CHART.destroy();
-  WEIGHT_CHART = new Chart(canvas.getContext('2d'), {
-    type:'line',
-    data:{ labels, datasets: [{ label:'Heaviest weight', data, spanGaps:true }]},
-    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:true} } }
-  });
-}
-
-window.initCharts = async () => {
-  try{
-    await renderMeasurementsChart();
-    await renderWeightChart(30);
-    document.querySelectorAll('.weight-range-btn').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        document.querySelectorAll('.weight-range-btn').forEach(b=>b.classList.remove('active'));
-        e.currentTarget.classList.add('active');
-        const days = parseInt(e.currentTarget.dataset.range,10) || 30;
-        await renderWeightChart(days);
-      });
-    });
-  }catch(e){ console.warn('initCharts failed', e); }
-};
-
-
-
-// ---- Home stats: day streak + PRs this week ----
-async function updateHomeStats(){
-  try{
-    if(!currentUser) return;
-    const userId = currentUser.uid;
-
-    // Get workout dates (last 200)
-    const wRef = collection(db, 'users', userId, 'workouts');
-    const wSnap = await getDocs(query(wRef, orderBy('date','desc'), qLimit(200)));
-    const days = new Set();
-    wSnap.forEach(d => {
-      const when = d.data().date?.toDate ? d.data().date.toDate() : (d.data().date ? new Date(d.data().date) : null);
-      if(when){ const z = new Date(when); z.setHours(0,0,0,0); days.add(z.toISOString().slice(0,10)); }
-    });
-
-    // Streak: count backwards from today if present, else from most recent workout day
-    const today = new Date(); today.setHours(0,0,0,0);
-    const key = (d)=> d.toISOString().slice(0,10);
-    let cursor = days.has(key(today)) ? today : (days.size? new Date(Array.from(days).sort().pop()) : null);
-    let streak = 0;
-    while(cursor && days.has(key(cursor))){
-      streak++; cursor = new Date(cursor.getTime()-86400000);
-    }
-    const streakEl = document.getElementById('day-streak');
-    if(streakEl) streakEl.textContent = String(streak);
-
-    // PRs this week
-    const uDoc = await getDoc(doc(db,'users',userId));
-    const prs = uDoc.data()?.stats?.personalRecords || {};
-    let count = 0;
-    const now = new Date(); const weekStart = new Date(now); weekStart.setHours(0,0,0,0); weekStart.setDate(now.getDate()-now.getDay());
-    Object.values(prs).forEach(r => {
-      const dt = r?.date?.toDate ? r.date.toDate() : (r?.date ? new Date(r.date) : null);
-      if(dt && dt >= weekStart) count++;
-    });
-    const prsEl = document.getElementById('prs-this-week');
-    if(prsEl) prsEl.textContent = String(count);
-  }catch(e){ console.warn('updateHomeStats failed', e); }
-}
-
-// Fire on load
-document.addEventListener('DOMContentLoaded', () => {
-  setTimeout(() => { try{ updateHomeStats(); initCharts?.(); }catch{} }, 800);
-});
