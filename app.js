@@ -1814,7 +1814,11 @@ async function loadWeightChart(rangeDays = 30) {
         // Destroy previous chart instance if exists
         if (weightChart) weightChart.destroy();
         const ctx = canvas.getContext('2d');
-        weightChart = new Chart(ctx, {
+        // Chart may be attached to the window object when loaded via
+        // external script.  Access it via window.Chart to avoid
+        // undefined references inside ESM modules.
+        const ChartClass = window.Chart || Chart;
+        weightChart = new ChartClass(ctx, {
             type: 'line',
             data: {
                 labels: labels,
