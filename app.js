@@ -887,6 +887,7 @@ async function loadRoutines() {
     }
 }
 
+
 function displayRoutines() {
     const routinesList = document.getElementById('routines-list');
     if (!routinesList) return;
@@ -909,9 +910,10 @@ function displayRoutines() {
         routinesList.appendChild(routineItem);
     });
 
-    // add edit/delete controls safely
+    // add edit/delete controls after render
     try { enhanceRoutineList(); } catch (e) { }
 }
+
 
 
 function startRoutineWorkout(routine) {
