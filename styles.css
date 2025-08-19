@@ -2398,3 +2398,35 @@ MOBILE UI FIXES - Add to the end of your styles.css file
    These rules override earlier duplicates and clamp widths
    to prevent inputs and cards from spilling off-screen.
    ===================================================== */
+
+
+/* === Turtle branding images === */
+.brand-logo {
+  display: inline-block;
+  width: 28px;
+  height: 28px;
+  vertical-align: -6px;
+  object-fit: contain;
+}
+.mascot-img {
+  display: block;
+  max-width: 140px;
+  max-height: 140px;
+  width: auto;
+  height: auto;
+  margin: 0 auto;
+  object-fit: contain;
+}
+.header .brand img.brand-logo,
+.navbar .brand img.brand-logo {
+  width: 32px;
+  height: 32px;
+}
+.auth-card .login-logo .mascot-img {
+  max-width: 120px;
+  max-height: 120px;
+}
+img[alt*="GymTracker"] {
+  max-width: 160px;
+  height: auto;
+}
