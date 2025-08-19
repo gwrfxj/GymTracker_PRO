@@ -1253,6 +1253,22 @@ window.deleteWorkout = async (workoutId) => {
     }
 };
 
+// Delete a measurement entry (body measurement or weight).  After deletion,
+// reload measurements and refresh the weight chart.  This allows
+// correcting mistakes or removing erroneous data points.
+window.deleteMeasurement = async (docId) => {
+    try {
+        if (!currentUser || !docId) return;
+        if (!confirm('Delete this measurement entry?')) return;
+        await deleteDoc(doc(db, 'users', currentUser.uid, 'measurements', docId));
+        await loadMeasurements();
+        showNotification('Measurement deleted.', 'success');
+    } catch (err) {
+        console.error('Error deleting measurement:', err);
+        showNotification('Failed to delete measurement.', 'error');
+    }
+};
+
 // Allow the user to edit a routine by adding custom exercises.  For simplicity
 // this implementation prompts the user for the exercise name, the body part hit
 // and the number of sets.  New exercises are appended to the routine.  If you
@@ -1863,6 +1879,7 @@ async function loadMeasurements() {
                 const dt = m.date && m.date.toDate ? m.date.toDate() : null;
                 const formatted = dt ? dt.toLocaleDateString() : '';
                 rows.push({
+                    id: d.id,
                     date: formatted,
                     weight: m.weight != null ? m.weight : 'N/A',
                     chest: m.chest != null ? m.chest : 'N/A',
@@ -1877,12 +1894,22 @@ async function loadMeasurements() {
                 if (rows.length === 0) {
                     container.innerHTML = '<p>No measurements recorded yet.</p>';
                 } else {
-                    let tableHtml = '<table class="measurements-table"><thead><tr><th>Date</th><th>Weight (lbs)</th><th>Chest"</th><th>Waist"</th><th>Arms"</th><th>Thighs"</th><th>Calves"</th></tr></thead><tbody>';
+                    // Build a table including a delete button for each entry
+                    let tableHtml = '<table class="measurements-table"><thead><tr><th>Date</th><th>Weight (lbs)</th><th>Chest"</th><th>Waist"</th><th>Arms"</th><th>Thighs"</th><th>Calves"</th><th></th></tr></thead><tbody>';
                     rows.forEach(row => {
-                        tableHtml += `<tr><td>${row.date}</td><td>${row.weight}</td><td>${row.chest}</td><td>${row.waist}</td><td>${row.arms}</td><td>${row.thighs}</td><td>${row.calves}</td></tr>`;
+                        tableHtml += `<tr><td>${row.date}</td><td>${row.weight}</td><td>${row.chest}</td><td>${row.waist}</td><td>${row.arms}</td><td>${row.thighs}</td><td>${row.calves}</td><td><button class="measurement-delete" data-id="${row.id}" title="Delete measurement">&times;</button></td></tr>`;
                     });
                     tableHtml += '</tbody></table>';
                     container.innerHTML = tableHtml;
+                    // Attach click handlers for measurement deletion
+                    const delBtns = container.querySelectorAll('.measurement-delete');
+                    delBtns.forEach(btn => {
+                        btn.addEventListener('click', async (e) => {
+                            const id = e.currentTarget.dataset.id;
+                            if (!id) return;
+                            await deleteMeasurement(id);
+                        });
+                    });
                 }
             }
         }
