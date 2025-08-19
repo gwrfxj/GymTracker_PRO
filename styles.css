@@ -2251,6 +2251,21 @@
             width: 150px;
             height: 300px;
         }
+
+        /* Allow core dashboard containers to span the full width on small
+           screens instead of capping them.  This helps prevent large
+           blank margins or unused space on phone layouts. */
+        .main-selection,
+        .workout-container,
+        .library-container,
+        .progress-container {
+            max-width: none;
+            width: 100%;
+            margin-left: 0;
+            margin-right: 0;
+            padding-left: 15px;
+            padding-right: 15px;
+        }
     }
 
     /* ===============================================
