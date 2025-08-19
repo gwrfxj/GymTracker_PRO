@@ -697,16 +697,21 @@ window.closeExerciseModal = () => {
 window.addSet = () => {
     const setsContainer = document.getElementById('sets-container');
     const setNumber = setsContainer.children.length + 1;
-    
+    // Each set row uses a grid with three columns: set label, a flex
+    // container for weight/reps inputs, and a completion button.  The
+    // inputs are wrapped in a div so they can flex evenly across the
+    // available space on both desktop and mobile screens.  Using IDs
+    // ensures saveExercise() can still find the values.
     const setRow = document.createElement('div');
     setRow.className = 'set-row';
     setRow.innerHTML = `
         <span class="set-number">Set ${setNumber}</span>
-        <input type="number" class="set-input" placeholder="Weight" id="weight-${setNumber}">
-        <input type="number" class="set-input" placeholder="Reps" id="reps-${setNumber}">
+        <div class="set-inputs">
+            <input type="number" class="set-input" placeholder="Weight" id="weight-${setNumber}">
+            <input type="number" class="set-input" placeholder="Reps" id="reps-${setNumber}">
+        </div>
         <button class="set-complete" onclick="toggleSetComplete(this)">✓</button>
     `;
-    
     setsContainer.appendChild(setRow);
 };
 
@@ -817,8 +822,10 @@ function displayExercise(exercise) {
             ${exercise.sets.map((set, index) => `
                 <div class="set-row" data-exercise-index="${exerciseIndex}" data-set-index="${index}">
                     <span class="set-number">Set ${index + 1}</span>
-                    <input type="number" class="set-display-weight" data-exercise-index="${exerciseIndex}" data-set-index="${index}" value="${set.weight}" min="0">
-                    <input type="number" class="set-display-reps" data-exercise-index="${exerciseIndex}" data-set-index="${index}" value="${set.reps}" min="0">
+                    <div class="set-inputs" data-exercise-index="${exerciseIndex}" data-set-index="${index}">
+                        <input type="number" class="set-display-weight" data-exercise-index="${exerciseIndex}" data-set-index="${index}" value="${set.weight}" min="0">
+                        <input type="number" class="set-display-reps" data-exercise-index="${exerciseIndex}" data-set-index="${index}" value="${set.reps}" min="0">
+                    </div>
                     <span class="set-status ${set.completed ? 'completed' : ''}" data-exercise-index="${exerciseIndex}" data-set-index="${index}">
                         ${set.completed ? '✓' : '○'}
                     </span>
