@@ -173,9 +173,9 @@
                 <h2>WORKOUT</h2>
                 <p>Track exercises, PRs, and progress</p>
                 <div class="card-stats">
-  <span><i class="fas fa-fire"></i> <span id="day-streak">0</span> day streak</span>
-  <span><i class="fas fa-trophy"></i> <span id="prs-this-week">0</span> PRs this week</span>
-</div>
+                  <span><i class="fas fa-fire"></i> 7 day streak</span>
+                  <span><i class="fas fa-trophy"></i> 3 PRs this week</span>
+                </div>
                 <button class="card-btn">
                   <span>Let's Train</span>
                   <i class="fas fa-arrow-right"></i>
@@ -581,23 +581,9 @@
                 </button>
                 <div class="measurements-history">
                   <h4>History</h4>
-                  <div class="charts-wrap"><canvas id="measurements-chart-canvas"></canvas></div><div id="measurements-table" class="measurements-table"></div>
+                  <div id="measurements-chart"></div>
                 </div>
               </div>
-            </div>
-          </div>
-
-          <!-- Weight Section -->
-          <div class="weight-section">
-            <h3><i class="fas fa-weight"></i> Body Weight</h3>
-            <div class="weight-range-buttons">
-              <button class="weight-range-btn active" data-range="30">30 days</button>
-              <button class="weight-range-btn" data-range="60">60 days</button>
-              <button class="weight-range-btn" data-range="90">90 days</button>
-              <button class="weight-range-btn" data-range="365">1 year</button>
-            </div>
-            <div class="charts-wrap">
-              <canvas id="weight-chart-canvas"></canvas>
             </div>
           </div>
 
@@ -610,7 +596,15 @@
                 <i class="fas fa-search"></i>
               </div>
 
-              <div class="library-filters"><div class="filter-group"><label for="body-part-select" class="sr-only">Body Part</label><select id="body-part-select"><option value="all">All Body Parts</option><option value="chest">Chest</option><option value="back">Back</option><option value="shoulders">Shoulders</option><option value="arms">Arms</option><option value="legs">Legs</option><option value="core">Core</option></select></div><div class="filter-group"><label for="subcategory-select" class="sr-only">Subcategory</label><select id="subcategory-select" disabled><option value="all">All Types</option></select></div></div>
+              <div class="library-filters">
+                <button class="filter-btn active" onclick="filterExercises('all')">All</button>
+                <button class="filter-btn" onclick="filterExercises('chest')">Chest</button>
+                <button class="filter-btn" onclick="filterExercises('back')">Back</button>
+                <button class="filter-btn" onclick="filterExercises('shoulders')">Shoulders</button>
+                <button class="filter-btn" onclick="filterExercises('arms')">Arms</button>
+                <button class="filter-btn" onclick="filterExercises('legs')">Legs</button>
+                <button class="filter-btn" onclick="filterExercises('core')">Core</button>
+              </div>
 
               <div class="exercises-grid" id="exercises-grid"></div>
             </div>
@@ -663,7 +657,6 @@
   </div>
 
   <!-- JavaScript Module -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3"></script>
   <script type="module" src="app.js"></script>
 </body>
 </html>
