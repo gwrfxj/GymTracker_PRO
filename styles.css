@@ -228,6 +228,77 @@
         animation: flex 1s ease-in-out infinite alternate;
     }
 
+    /*
+     * Override styles when using PNGs instead of emoji for the mascot.
+     * The .logo-image sits within .logo-mascot and should scale responsively.
+     */
+    .logo-mascot img.logo-image {
+        width: 80px;
+        height: 80px;
+        object-fit: contain;
+        display: block;
+        margin: 0 auto;
+        animation: pulse 2s infinite;
+    }
+
+    /* Small logo used in the header. */
+    .logo-small-img {
+        width: 32px;
+        height: 32px;
+        object-fit: contain;
+        display: block;
+    }
+
+    /* Logo displayed in the workout header */
+    .workout-logo-img {
+        width: 40px;
+        height: 40px;
+        object-fit: contain;
+        display: block;
+    /* Remove bouncing animation from the workout zone logo so it stays stationary */
+    }
+
+    /* Floating icons (e.g. dumbbell) replaced with PNGs. Ensure images animate like the text versions. */
+    .floating-dumbbell {
+        width: 40px;
+        height: 40px;
+        opacity: 0.1;
+        pointer-events: none;
+        animation: float 6s ease-in-out infinite;
+        /* reset font-size on the image element to avoid inheriting text sizing */
+        font-size: 0;
+    }
+
+    .floating-dumbbell img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
+
+    /* Workout title input styling */
+    .workout-title-input {
+        margin: 10px 0;
+    }
+    .workout-title-input input {
+        width: 100%;
+        padding: 10px 12px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 2px solid rgba(255, 255, 255, 0.1);
+        border-radius: var(--radius-md);
+        color: var(--primary-white);
+        font-size: 16px;
+        transition: var(--transition-normal);
+    }
+    .workout-title-input input:focus {
+        outline: none;
+        border-color: var(--primary-red);
+        background: rgba(255, 255, 255, 0.08);
+        box-shadow: 0 0 20px rgba(220, 38, 38, 0.3);
+    }
+    .workout-title-input input::placeholder {
+        color: rgba(255, 255, 255, 0.4);
+    }
+
     @keyframes pulse {
         0%, 100% { transform: scale(1); }
         50% { transform: scale(1.05); }
@@ -828,8 +899,11 @@
         letter-spacing: 3px;
     }
 
+    /* Remove the bounce animation from the workout mascot so it stays
+       stationary in the header.  Without this animation the turtle
+       icon no longer "pops" in and out. */
     .turtle-mascot {
-        animation: bounce 2s infinite;
+        animation: none;
     }
 
     .buff-turtle {
@@ -1142,7 +1216,10 @@
 
     .set-row {
         display: grid;
-        grid-template-columns: 50px 1fr 1fr 80px;
+        /* The set row consists of the set label, weight input, reps input
+           and the completion status indicator.  Explicitly size the
+           inputs to avoid unpredictable stretching on small screens. */
+        grid-template-columns: 60px 80px 80px 30px;
         gap: 10px;
         align-items: center;
     }
@@ -1187,6 +1264,94 @@
     .set-complete.completed {
         background: rgba(16, 185, 129, 0.5);
         color: #10B981;
+    }
+
+    /*
+    Interactive status indicator for sets displayed in the active workout list.
+    Each set row in the workout summary uses a span with class `.set-status` to
+    show whether the set has been completed.  Make these indicators clickable
+    with a pointer cursor and visually distinct when completed.
+    */
+    .set-status {
+        cursor: pointer;
+        user-select: none;
+        font-size: 18px;
+        padding: 4px 6px;
+        border-radius: var(--radius-sm);
+        background: rgba(255, 255, 255, 0.05);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: background var(--transition-fast), color var(--transition-fast);
+    }
+
+    .set-status.completed {
+        background: var(--gradient-fire);
+        color: var(--primary-white);
+    }
+
+/* Input boxes for editing weight and reps inline in the active workout.
+   These inputs replace the old text-only display so that users can
+   directly adjust values without popups.  They are styled similarly
+   to other UI elements with a subtle border and dark background to
+   indicate interactivity. */
+.set-display-weight,
+.set-display-reps {
+    width: 70px;
+    padding: 6px 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-sm);
+    color: var(--primary-white);
+    text-align: center;
+    font-size: 14px;
+    transition: var(--transition-normal);
+}
+
+.set-display-weight:focus,
+.set-display-reps:focus {
+    outline: none;
+    border-color: var(--primary-red);
+    background: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 0 10px rgba(220, 38, 38, 0.3);
+}
+
+    /* Button to add an extra set within an exercise item */
+    .inline-add-set {
+        margin-top: 10px;
+        padding: 6px 10px;
+        background: rgba(255, 255, 255, 0.08);
+        border: none;
+        border-radius: var(--radius-md);
+        color: var(--primary-white);
+        cursor: pointer;
+        font-size: 16px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: background var(--transition-fast), color var(--transition-fast);
+    }
+    .inline-add-set i {
+        pointer-events: none;
+    }
+    .inline-add-set:hover {
+        background: var(--gradient-fire);
+    }
+
+    /* Editable weight and reps inputs inside the active workout sets */
+    input.set-display-weight, input.set-display-reps {
+        min-width: 60px;
+        padding: 6px 8px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: var(--radius-sm);
+        color: var(--primary-white);
+        text-align: center;
+        font-size: 14px;
+    }
+    input.set-display-weight:focus, input.set-display-reps:focus {
+        outline: none;
+        border-color: var(--gold);
     }
 
     .workout-actions {
@@ -1453,6 +1618,32 @@
         color: var(--primary-white);
     }
 
+/* Table for displaying historical body measurements.  Uses a dark
+   background and subtle borders to integrate with the overall
+   aesthetic. */
+.measurements-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    color: var(--primary-white);
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+.measurements-table thead {
+    background: rgba(255, 255, 255, 0.05);
+}
+.measurements-table th,
+.measurements-table td {
+    padding: 8px 12px;
+    text-align: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.measurements-table tr:nth-child(even) {
+    background: rgba(255, 255, 255, 0.03);
+}
+
     #measurements-chart {
         background: rgba(0, 0, 0, 0.3);
         border-radius: var(--radius-md);
@@ -1691,6 +1882,34 @@
         border-color: var(--gold);
     }
 
+    /* Muscle group selector styling inside the exercise and PR modals */
+    .muscle-select {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .muscle-select select {
+        /* Each select takes roughly half of the available space on larger screens.
+           The flex-basis uses calc to account for the gap between the two
+           items.  A minimum width prevents collapsing on very narrow screens. */
+        flex: 1 1 calc(50% - 10px);
+        min-width: 130px;
+        /* Increase padding and font-size for easier touch targets,
+           improving mobile usability and visual heft. */
+        padding: 12px 14px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: var(--radius-md);
+        color: var(--primary-white);
+        font-size: 16px;
+        min-height: 44px;
+    }
+    .muscle-select select:focus {
+        outline: none;
+        border-color: var(--gold);
+    }
+
     .sets-container {
         display: flex;
         flex-direction: column;
@@ -1720,6 +1939,44 @@
     .save-exercise-btn {
         background: var(--gradient-fire);
         color: var(--primary-white);
+    }
+
+    /* Save button for the personal record modal */
+    .save-pr-btn {
+        padding: 12px;
+        border: none;
+        border-radius: var(--radius-md);
+        font-weight: 600;
+        cursor: pointer;
+        transition: var(--transition-normal);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        background: var(--gradient-fire);
+        color: var(--primary-white);
+    }
+    .save-pr-btn:hover {
+        transform: scale(1.05);
+    }
+
+    /* Save button for routine exercise modal */
+    .save-routine-ex-btn {
+        padding: 12px;
+        border: none;
+        border-radius: var(--radius-md);
+        font-weight: 600;
+        cursor: pointer;
+        transition: var(--transition-normal);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        background: var(--gradient-fire);
+        color: var(--primary-white);
+    }
+    .save-routine-ex-btn:hover {
+        transform: scale(1.05);
     }
 
     .add-set-btn:hover,
@@ -1779,6 +2036,24 @@
     .routine-exercises {
         color: rgba(255, 255, 255, 0.6);
         font-size: 14px;
+    }
+
+    /* Edit button inside a routine item */
+    .edit-routine-btn {
+        background: none;
+        border: none;
+        color: rgba(255, 255, 255, 0.6);
+        cursor: pointer;
+        font-size: 16px;
+        padding: 0 6px;
+        display: flex;
+        align-items: center;
+    }
+    .edit-routine-btn i {
+        pointer-events: none;
+    }
+    .edit-routine-btn:hover {
+        color: var(--gold);
     }
 
     /* ===============================================
@@ -2048,6 +2323,13 @@
   margin-top: 15px;
 }
 
+/* On small screens, stack the two muscle group selects vertically. */
+@media (max-width: 600px) {
+  .muscle-select select {
+    flex: 1 1 100%;
+  }
+}
+
 /* Each photo */
 #progress-photos img {
   max-width: 150px;   /* make them smaller */
@@ -2063,4 +2345,125 @@
   color: #9aa3ad; /* subtle gray */
   margin-left: 8px;
   font-weight: 400;
+}
+
+/* ============================
+   Progress Tab (Charts + Photos)
+   ============================ */
+.progress-inner {
+  padding: 1rem;
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.progress-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.progress-actions .auth-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.8rem;
+}
+
+.photo-note {
+  font-size: 0.8rem;
+  color: #aaa;
+}
+
+/* Charts wrapper */
+.charts-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.charts-wrap canvas {
+  width: 100% !important;
+  background: #1a1a1a;
+  border-radius: 8px;
+  padding: 0.5rem;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.25);
+}
+
+/* ============================
+   Photo Grid
+   ============================ */
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 0.75rem;
+}
+
+.photo-card {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #222;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  display: flex;
+  flex-direction: column;
+}
+
+.photo-card.uploading .photo-thumb {
+  filter: grayscale(1) brightness(0.6);
+}
+
+.photo-thumb {
+  width: 100%;
+  padding-top: 100%; /* square */
+  background-size: cover;
+  background-position: center;
+}
+
+.photo-meta {
+  padding: 0.4rem 0.6rem;
+  font-size: 0.8rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #ccc;
+}
+
+.photo-meta .date {
+  font-size: 0.75rem;
+  color: #888;
+}
+
+.photo-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.photo-actions a {
+  font-size: 0.75rem;
+  color: #4da6ff;
+  text-decoration: none;
+}
+
+.photo-actions a:hover {
+  text-decoration: underline;
+}
+
+.photo-actions .auth-btn {
+  background: none;
+  border: none;
+  padding: 0.25rem;
+  color: #f55;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.photo-actions .auth-btn:hover {
+  color: #ff7777;
 }
