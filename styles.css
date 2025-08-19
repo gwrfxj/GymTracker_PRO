@@ -2438,3 +2438,20 @@ MOBILE UI FIXES - Add to the end of your styles.css file
 .weight-range-buttons{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
 .weight-range-btn{ background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.2); color:#fff; padding:6px 10px; border-radius:10px; cursor:pointer; }
 .weight-range-btn.active{ background:var(--gradient-fire); border-color:transparent; }
+
+
+/* Loader mascot size (keep it big enough but not huge) */
+.loading-overlay .loader-mascot, .turtle-loader .loader-mascot {
+  display: block;
+  margin: 0 auto 10px;
+  width: 180px;
+  max-width: 40vw;
+  height: auto;
+  object-fit: contain;
+}
+@media (max-width: 640px){
+  .loading-overlay .loader-mascot, .turtle-loader .loader-mascot {
+    width: 140px;
+    max-width: 60vw;
+  }
+}
