@@ -2270,6 +2270,13 @@
             padding-left: 15px;
             padding-right: 15px;
         }
+
+        /* Ensure workout tab content spans the full width on small screens */
+        .workout-content {
+            max-width: none;
+            margin-left: 0;
+            margin-right: 0;
+        }
     }
 
     /* ===============================================
@@ -2657,6 +2664,30 @@
 #weight-chart {
   width: 100%;
   max-height: 240px;
+}
+
+/* Delete button for measurement history rows. Placed inside a table cell to
+   allow users to remove incorrect entries from their body measurement
+   history. Styled similarly to other delete actions in the app. */
+.measurements-table .measurement-delete {
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--primary-red);
+    font-size: 16px;
+    line-height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.measurements-table .measurement-delete:hover {
+    background: var(--gradient-fire);
+    color: var(--primary-white);
 }
 
 /* Delete button for workout history items */
