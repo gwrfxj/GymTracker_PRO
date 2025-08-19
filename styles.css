@@ -2487,3 +2487,94 @@
 .photo-actions .auth-btn:hover {
   color: #ff7777;
 }
+
+/* ===============================
+   Weight Progress Section Styles
+   =============================== */
+
+.weight-section {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-xl);
+  padding: 25px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  margin-top: 30px;
+}
+
+.weight-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  color: var(--gold);
+  font-size: 20px;
+}
+
+.weight-input-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.weight-input-row input {
+  flex: 1;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-md);
+  color: var(--primary-white);
+  font-size: 16px;
+}
+
+.save-weight-btn {
+  background: var(--gradient-fire);
+  color: var(--primary-white);
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.save-weight-btn i {
+  pointer-events: none;
+}
+
+.save-weight-btn:hover {
+  background: var(--gradient-fire-hover, linear-gradient(45deg, #e53935, #d81b60));
+}
+
+.weight-range-buttons {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.weight-range-btn {
+  flex: 1;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-md);
+  color: var(--primary-white);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+  text-align: center;
+}
+
+.weight-range-btn.active,
+.weight-range-btn:hover {
+  background: var(--gradient-fire);
+  border-color: var(--gold);
+  color: var(--primary-white);
+}
+
+#weight-chart {
+  width: 100%;
+  max-height: 240px;
+}
