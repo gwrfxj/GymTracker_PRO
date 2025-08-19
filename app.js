@@ -887,31 +887,32 @@ async function loadRoutines() {
     }
 }
 
-
 function displayRoutines() {
-  const routinesList = document.getElementById('routines-list');
-  if (!routinesList) return;
-  routinesList.innerHTML = '';
+    const routinesList = document.getElementById('routines-list');
+    if (!routinesList) return;
+    routinesList.innerHTML = '';
 
-  if (!Array.isArray(userRoutines) || userRoutines.length === 0) {
-    routinesList.innerHTML = '<p style="color: rgba(255,255,255,0.5);">No routines yet. Create your first routine!</p>';
-    return;
-  }
+    if (!Array.isArray(userRoutines) || userRoutines.length === 0) {
+        routinesList.innerHTML = '<p style="color: rgba(255,255,255,0.5);">No routines yet. Create your first routine!</p>';
+        return;
+    }
 
-  userRoutines.forEach(routine => {
-    const routineItem = document.createElement('div');
-    routineItem.className = 'routine-item';
-    routineItem.innerHTML = `
+    userRoutines.forEach(routine => {
+        const routineItem = document.createElement('div');
+        routineItem.className = 'routine-item';
+        routineItem.innerHTML = `
       <div class="routine-name">${routine.name}</div>
-      <div class="routine-exercises">${(routine.exercises||[]).length} exercises</div>
+      <div class="routine-exercises">${(routine.exercises || []).length} exercises</div>
     `;
-    routineItem.onclick = () => startRoutineWorkout(routine);
-    routineItem.setAttribute('data-routine-id', routine.id || '');
-    routinesList.appendChild(routineItem);
-  });
+        routineItem.onclick = () => startRoutineWorkout(routine);
+        routineItem.setAttribute('data-routine-id', routine.id || '');
+        routinesList.appendChild(routineItem);
+    });
 
-  try { enhanceRoutineList(); } catch (e) {}
+    // add edit/delete controls safely
+    try { enhanceRoutineList(); } catch (e) { }
 }
+
 
 function startRoutineWorkout(routine) {
     closeRoutinesModal();
@@ -961,26 +962,25 @@ window.addPR = async () => {
     }
 };
 
-async 
 async function loadPRs() {
-  if (!currentUser) return;
-  try {
-    const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-    const prs = userDoc.data()?.stats?.personalRecords || {};
+    if (!currentUser) return;
+    try {
+        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+        const prs = userDoc.data()?.stats?.personalRecords || {};
 
-    const prsList = document.getElementById('prs-list');
-    if (!prsList) return;
-    prsList.innerHTML = '';
+        const prsList = document.getElementById('prs-list');
+        if (!prsList) return;
+        prsList.innerHTML = '';
 
-    if (Object.keys(prs).length === 0) {
-      prsList.innerHTML = '<p style="color: rgba(255,255,255,0.5);">No personal records yet. Set your first PR!</p>';
-      return;
-    }
+        if (Object.keys(prs).length === 0) {
+            prsList.innerHTML = '<p style="color: rgba(255,255,255,0.5);">No personal records yet. Set your first PR!</p>';
+            return;
+        }
 
-    Object.entries(prs).forEach(([exercise, record]) => {
-      const prItem = document.createElement('div');
-      prItem.className = 'pr-item';
-      prItem.innerHTML = `
+        Object.entries(prs).forEach(([exercise, record]) => {
+            const prItem = document.createElement('div');
+            prItem.className = 'pr-item';
+            prItem.innerHTML = `
         <div class="pr-exercise">${exercise}</div>
         <div class="pr-value">${record.weight} lbs × ${record.reps}</div>
         <div class="pr-date">${record.date?.toDate ? record.date.toDate().toLocaleDateString() : 'Recent'}</div>
@@ -989,13 +989,13 @@ async function loadPRs() {
           <button class="pr-action-btn delete" title="Delete">✕</button>
         </div>
       `;
-      prItem.querySelector('.edit')?.addEventListener('click', () => editPR(exercise));
-      prItem.querySelector('.delete')?.addEventListener('click', () => deletePR(exercise));
-      prsList.appendChild(prItem);
-    });
-  } catch (error) {
-    console.error('Error loading PRs:', error);
-  }
+            prItem.querySelector('.edit')?.addEventListener('click', () => editPR(exercise));
+            prItem.querySelector('.delete')?.addEventListener('click', () => deletePR(exercise));
+            prsList.appendChild(prItem);
+        });
+    } catch (error) {
+        console.error('Error loading PRs:', error);
+    }
 }
 
 
