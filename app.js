@@ -108,6 +108,13 @@ let exerciseLibrary = [];
 let userRoutines = [];
 let muscleResetTimer = null;
 
+// Weight chart and range state.  The weightChart instance will hold the
+// Chart.js line chart used in the weight progress section.  The
+// currentWeightRange determines how many days of weight data to
+// display (default 30 days).
+let weightChart = null;
+let currentWeightRange = 30;
+
 // ===============================================
 // Dashboard Stats Helper
 //
@@ -673,7 +680,7 @@ window.addExercise = (prefilledName = '') => {
     addSet();
 
     // Reset muscle category and sub selects when opening the modal.  This
-    // ensures the user is prompted to choose a muscle group each time
+    // ensures the user is prompted to choose a muscle group each time.
     const catSelect = document.getElementById('muscle-category');
     const subSelect = document.getElementById('muscle-sub');
     if (catSelect) catSelect.value = '';
@@ -681,6 +688,53 @@ window.addExercise = (prefilledName = '') => {
         subSelect.innerHTML = '<option value="">Select specific muscle</option>';
         subSelect.style.display = 'none';
         subSelect.value = '';
+    }
+
+    // If the exercise name was prefilled, automatically select the
+    // appropriate muscle category and sub-group based on the
+    // defaultExercises mapping.  This removes manual selection
+    // steps for the user when choosing from the library.  We
+    // dispatch a change event on the category select to populate
+    // the sub-group options, then set the sub-group value to
+    // whichever specific muscle matches the exercise’s muscles list.
+    if (prefilledName) {
+        const match = defaultExercises.find(ex => ex.name.toLowerCase() === prefilledName.toLowerCase());
+        if (match && catSelect) {
+            catSelect.value = match.category;
+            // Trigger change event to populate sub options
+            const evt = new Event('change');
+            catSelect.dispatchEvent(evt);
+            if (subSelect) {
+                // Determine which specific muscle option best matches the exercise's muscles array
+                const subOptions = muscleOptions[match.category] || [];
+                let chosen = '';
+                if (subOptions.length > 0) {
+                    // Try to match the first muscle in the exercise's muscles list that appears in the sub options
+                    const normalizedSubs = subOptions.map(s => s.toLowerCase());
+                    for (const m of match.muscles) {
+                        const idx = normalizedSubs.indexOf(m.toLowerCase());
+                        if (idx !== -1) {
+                            chosen = subOptions[idx];
+                            break;
+                        }
+                    }
+                    // If no match found, default to the first available sub option
+                    if (!chosen) {
+                        chosen = subOptions[0];
+                    }
+                }
+                if (chosen) {
+                    // If there is more than one option, show the sub-select; otherwise it remains hidden
+                    if (subOptions.length > 1) {
+                        subSelect.style.display = '';
+                        subSelect.value = chosen;
+                    } else {
+                        subSelect.style.display = 'none';
+                        subSelect.value = chosen;
+                    }
+                }
+            }
+        }
     }
 };
 
@@ -1638,12 +1692,12 @@ async function loadMeasurements() {
                 const formatted = dt ? dt.toLocaleDateString() : '';
                 rows.push({
                     date: formatted,
-                    weight: m.weight ?? '',
-                    chest: m.chest ?? '',
-                    waist: m.waist ?? '',
-                    arms: m.arms ?? '',
-                    thighs: m.thighs ?? '',
-                    calves: m.calves ?? ''
+                    weight: m.weight != null ? m.weight : 'N/A',
+                    chest: m.chest != null ? m.chest : 'N/A',
+                    waist: m.waist != null ? m.waist : 'N/A',
+                    arms: m.arms != null ? m.arms : 'N/A',
+                    thighs: m.thighs != null ? m.thighs : 'N/A',
+                    calves: m.calves != null ? m.calves : 'N/A'
                 });
             });
             const container = document.getElementById('measurements-chart');
@@ -1663,7 +1717,170 @@ async function loadMeasurements() {
     } catch (error) {
         console.error('Error loading measurements:', error);
     }
+
+    // After loading measurement history, update the weight chart with the
+    // current range.  This ensures the weight graph stays in sync with
+    // any new measurement data.  Note: loadWeightChart is defined
+    // below and will be a no-op if the user is not logged in.
+    try {
+        await loadWeightChart(currentWeightRange);
+    } catch (err) {
+        console.warn('Failed to load weight chart:', err?.message || err);
+    }
 }
+
+// ===============================================
+// Weight Progress Tracking
+//
+// Users can log individual weight entries in addition to body
+// measurements.  These weight entries are stored in the same
+// measurements subcollection with all other measurement fields left
+// null.  The weight progress chart visualizes these entries over
+// selectable time ranges.
+
+// Save a weight-only entry.  If the input is empty or not a positive
+// number, the user is notified.  After saving, the chart reloads.
+window.saveWeight = async () => {
+    if (!currentUser) {
+        showNotification('Please sign in to save weight entries', 'error');
+        return;
+    }
+    const weightInput = document.getElementById('weight-only-input');
+    const val = parseFloat(weightInput.value);
+    if (!val || val <= 0) {
+        showNotification('Please enter a valid weight', 'error');
+        return;
+    }
+    try {
+        await addDoc(collection(db, 'users', currentUser.uid, 'measurements'), {
+            userId: currentUser.uid,
+            weight: val,
+            chest: null,
+            waist: null,
+            arms: null,
+            thighs: null,
+            calves: null,
+            date: serverTimestamp()
+        });
+        weightInput.value = '';
+        await loadWeightChart(currentWeightRange);
+        showNotification('Weight saved!', 'success');
+    } catch (err) {
+        console.error('Error saving weight:', err);
+        showNotification('Error saving weight', 'error');
+    }
+};
+
+// Load weight data and render the chart for the specified range in days.
+async function loadWeightChart(rangeDays = 30) {
+    if (!currentUser) return;
+    try {
+        currentWeightRange = rangeDays;
+        const measurementsRef = collection(db, 'users', currentUser.uid, 'measurements');
+        const now = new Date();
+        const startDate = new Date(now.getTime() - rangeDays * 24 * 60 * 60 * 1000);
+        // Query for measurements with date >= startDate, ordered by date ascending
+        let q; 
+        if (startDate) {
+            q = query(measurementsRef, where('date', '>=', Timestamp.fromDate(startDate)), orderBy('date', 'asc'));
+        } else {
+            q = query(measurementsRef, orderBy('date', 'asc'));
+        }
+        const snap = await getDocs(q);
+        const labels = [];
+        const data = [];
+        snap.forEach(docSnap => {
+            const d = docSnap.data();
+            if (d.weight != null) {
+                const dt = d.date && d.date.toDate ? d.date.toDate() : null;
+                if (dt) {
+                    labels.push(dt.toLocaleDateString());
+                    data.push(d.weight);
+                }
+            }
+        });
+        // If no data points, clear chart and exit
+        const canvas = document.getElementById('weight-chart');
+        if (!canvas) return;
+        if (labels.length === 0) {
+            if (weightChart) {
+                weightChart.destroy();
+                weightChart = null;
+            }
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            return;
+        }
+        // Destroy previous chart instance if exists
+        if (weightChart) weightChart.destroy();
+        const ctx = canvas.getContext('2d');
+        weightChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Weight (lbs)',
+                    data: data,
+                    borderColor: '#d81b60',
+                    backgroundColor: 'rgba(216,27,96,0.2)',
+                    tension: 0.3,
+                    fill: true,
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Date',
+                            color: '#ccc'
+                        },
+                        ticks: {
+                            color: '#fff'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Weight (lbs)',
+                            color: '#ccc'
+                        },
+                        ticks: {
+                            color: '#fff'
+                        },
+                        beginAtZero: true
+                    }
+                },
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: '#fff'
+                        }
+                    }
+                }
+            }
+        });
+        // Highlight the active range button
+        document.querySelectorAll('.weight-range-btn').forEach(btn => {
+            btn.classList.remove('active');
+            const days = parseInt(btn.getAttribute('data-range'));
+            if (days === rangeDays) {
+                btn.classList.add('active');
+            }
+        });
+    } catch (err) {
+        console.error('Error loading weight chart:', err);
+    }
+}
+
+// Update chart when a range button is clicked
+window.updateWeightChartRange = async (days) => {
+    await loadWeightChart(days);
+};
 
 // ===============================================
 // Exercise Library Functions
