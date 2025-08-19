@@ -539,11 +539,15 @@
     4. MAIN DASHBOARD
     =============================================== */
     .main-dashboard {
+        /* Make sure the main dashboard spans the full viewport width on all devices */
+        width: 100vw;
         min-height: 100vh;
         background: var(--gradient-dark);
     }
 
     .dashboard-header {
+        /* Ensure the header stretches across the viewport. */
+        width: 100vw;
         background: linear-gradient(135deg, var(--primary-black) 0%, var(--dark-blue) 100%);
         padding: 15px 20px;
         display: flex;
@@ -2290,6 +2294,17 @@
         }
         .weight-input-row input {
             margin-bottom: 10px;
+        }
+
+        /* Stack workout tab buttons vertically and make them full width on small screens */
+        .workout-tabs {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 8px;
+        }
+        .workout-tab {
+            flex: none;
+            width: 100%;
         }
 
         /* Allow core dashboard containers to span the full width on small
