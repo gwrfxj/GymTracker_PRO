@@ -1240,7 +1240,10 @@
 
     .set-inputs .set-input {
         flex: 1;
-        width: 100%;
+        /* Force the workout section to span the full viewport width.  Using
+           100vw bypasses any max-width or parent constraints that may
+           center content on mobile devices. */
+        width: 100vw;
     }
 
     .set-number {
@@ -1349,7 +1352,8 @@
    indicate interactivity. */
     .set-display-weight,
     .set-display-reps {
-        width: 100%;
+        /* Force the header to fill the full viewport width. */
+        width: 100vw;
         padding: 6px 8px;
         background: rgba(255, 255, 255, 0.05);
         border: 2px solid rgba(255, 255, 255, 0.1);
