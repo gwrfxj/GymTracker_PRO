@@ -109,6 +109,40 @@ let userRoutines = [];
 let muscleResetTimer = null;
 
 // ===============================================
+// Dashboard Stats Helper
+//
+// Computes the current streak and weekly PR count and updates the
+// corresponding elements in the DOM. This is called whenever user
+// data is loaded or updated. A missing element is ignored gracefully.
+function updateDashboardStats(userData) {
+    try {
+        const streakEl = document.getElementById('streak-days');
+        const prsWeekEl = document.getElementById('prs-week');
+        if (streakEl) {
+            const streak = userData?.stats?.currentStreak || 0;
+            streakEl.textContent = streak;
+        }
+        if (prsWeekEl) {
+            const prs = userData?.stats?.personalRecords || {};
+            let count = 0;
+            const now = new Date();
+            const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            Object.values(prs).forEach(record => {
+                if (record?.date?.toDate) {
+                    const d = record.date.toDate();
+                    if (d >= oneWeekAgo) count++;
+                } else {
+                    count++;
+                }
+            });
+            prsWeekEl.textContent = count;
+        }
+    } catch (err) {
+        console.warn('updateDashboardStats() failed', err?.message || err);
+    }
+}
+
+// ===============================================
 // Exercise Library Data
 // ===============================================
 const defaultExercises = [
@@ -155,6 +189,22 @@ const defaultExercises = [
     { name: "Leg Raises", category: "core", muscles: ["Lower Abs"], difficulty: 3 },
     { name: "Cable Crunches", category: "core", muscles: ["Abs"], difficulty: 2 }
 ];
+
+// Mapping of muscle categories to specific muscle groups.  These are used
+// for selecting the body part an exercise or personal record hits.  When a
+// category has only one entry, the sub-select will be hidden and the
+// single muscle group will be used automatically.
+const muscleOptions = {
+    chest: ['Upper Chest', 'Lower Chest'],
+    back: ['Lats', 'Mid Back', 'Lower Back', 'Traps'],
+    shoulders: ['Front Delts', 'Side Delts', 'Rear Delts'],
+    arms: ['Biceps', 'Triceps', 'Forearms'],
+    legs: ['Quads', 'Hamstrings', 'Glutes', 'Calves'],
+    core: ['Abs', 'Obliques']
+};
+
+// Holds the ID of the routine currently being edited via the routine exercise modal
+let editingRoutineId = null;
 
 // ===============================================
 // Authentication Functions
@@ -348,10 +398,13 @@ async function loadUserData() {
             // Update welcome message
             document.getElementById('user-name').textContent = userData.displayName || 'Champion';
             
-            // Update stats
+            // Update stats summary cards
             document.getElementById('total-workouts').textContent = userData.stats?.totalWorkouts || 0;
             document.getElementById('total-weight').textContent = `${userData.stats?.totalWeight || 0} lbs`;
             document.getElementById('total-prs').textContent = Object.keys(userData.stats?.personalRecords || {}).length;
+
+            // Update streak and PR counters on the dashboard
+            updateDashboardStats(userData);
             
             // Check if week needs reset
             await checkWeeklyReset();
@@ -587,15 +640,58 @@ function startTimer() {
     }, 1000);
 }
 
-window.addExercise = () => {
-    document.getElementById('exercise-modal').style.display = 'flex';
-    document.getElementById('exercise-name').value = '';
-    document.getElementById('sets-container').innerHTML = '';
-    addSet(); // Add first set by default
+// Add a new exercise.  Optionally accepts a prefilled exercise name.  When
+// prefilledName is provided (e.g. when selecting an exercise from the
+// exercise library), the exercise name input will be hidden and the value
+// automatically set.  Without a prefilledName, the input is shown and
+// cleared so that the user can type their own exercise name.
+window.addExercise = (prefilledName = '') => {
+    // If no workout has been started yet, automatically begin one so that
+    // exercises have somewhere to live.  This also shows the active
+    // workout section and starts the timer.
+    if (!currentWorkout) {
+        startWorkout();
+    }
+    const modal = document.getElementById('exercise-modal');
+    const nameInput = document.getElementById('exercise-name');
+    const setsContainer = document.getElementById('sets-container');
+
+    modal.style.display = 'flex';
+
+    // Assign the prefilled name (if provided) and hide the input when
+    // selecting from the exercise library.  Otherwise show the input and
+    // clear any previous value.
+    if (prefilledName) {
+        nameInput.value = prefilledName;
+        nameInput.style.display = 'none';
+    } else {
+        nameInput.value = '';
+        nameInput.style.display = '';
+    }
+    // Reset sets container and add a default set
+    setsContainer.innerHTML = '';
+    addSet();
+
+    // Reset muscle category and sub selects when opening the modal.  This
+    // ensures the user is prompted to choose a muscle group each time
+    const catSelect = document.getElementById('muscle-category');
+    const subSelect = document.getElementById('muscle-sub');
+    if (catSelect) catSelect.value = '';
+    if (subSelect) {
+        subSelect.innerHTML = '<option value="">Select specific muscle</option>';
+        subSelect.style.display = 'none';
+        subSelect.value = '';
+    }
 };
 
 window.closeExerciseModal = () => {
-    document.getElementById('exercise-modal').style.display = 'none';
+    const modal = document.getElementById('exercise-modal');
+    if (modal) modal.style.display = 'none';
+    // Always show the exercise name input again when closing the modal so
+    // that subsequent manual adds are not hidden.  The value will be
+    // reset when addExercise() runs.
+    const nameInput = document.getElementById('exercise-name');
+    if (nameInput) nameInput.style.display = '';
 };
 
 window.addSet = () => {
@@ -630,44 +726,74 @@ window.saveExercise = () => {
     const setRows = document.querySelectorAll('#sets-container .set-row');
     
     setRows.forEach((row, index) => {
-        const weight = row.querySelector(`#weight-${index + 1}`).value;
-        const reps = row.querySelector(`#reps-${index + 1}`).value;
+        const weightVal = row.querySelector(`#weight-${index + 1}`).value;
+        const repsVal = row.querySelector(`#reps-${index + 1}`).value;
         const completed = row.querySelector('.set-complete').classList.contains('completed');
-        
-        if (weight && reps) {
-            sets.push({ weight: parseFloat(weight), reps: parseInt(reps), completed });
-        }
+        // Allow empty weight or reps; default to 0 so users can fill these later in the workout
+        const weightNum = weightVal ? parseFloat(weightVal) : 0;
+        const repsNum = repsVal ? parseInt(repsVal) : 0;
+        sets.push({ weight: weightNum, reps: repsNum, completed });
     });
     
     if (sets.length === 0) {
-        showNotification('Please add at least one set with weight and reps', 'error');
+        showNotification('Please add at least one set', 'error');
         return;
     }
     
+    // Build the exercise object.  Include a muscleGroup property based on
+    // the selected category/sub-group from the modal.  We first check the
+    // sub-group select (only visible when multiple choices exist).  If a
+    // specific muscle is selected, use it; otherwise default to the first
+    // muscle in the chosen category.  If no category was chosen, the
+    // muscleGroup will be undefined and we fall back to the library data.
+    const catSelect = document.getElementById('muscle-category');
+    const subSelect = document.getElementById('muscle-sub');
+    let muscleGroup = null;
+    if (subSelect && subSelect.style.display !== 'none' && subSelect.value) {
+        muscleGroup = subSelect.value;
+    } else if (catSelect && catSelect.value) {
+        const opts = muscleOptions[catSelect.value] || [];
+        muscleGroup = subSelect && subSelect.value ? subSelect.value : (opts[0] || catSelect.value);
+    }
+
     // Add to current workout
     const exercise = {
         name: exerciseName,
         sets: sets,
-        timestamp: new Date()
+        timestamp: new Date(),
+        muscleGroup: muscleGroup || undefined
     };
-    
+
     currentWorkout.exercises.push(exercise);
-    
+
     // Update UI
     displayExercise(exercise);
-    
-    // Find and update muscles worked
-    const exerciseData = defaultExercises.find(e => 
-        e.name.toLowerCase() === exerciseName.toLowerCase()
-    );
-    
-    if (exerciseData) {
-        const musclesToUpdate = getMuscleGroups(exerciseData.muscles);
-        updateMusclesWorked(musclesToUpdate);
+
+    // Update the muscle map immediately based on either the selected muscle
+    // group or the default exercise library.  If the user selected a
+    // specific muscle, use that; otherwise use the library-defined
+    // muscles.
+    if (muscleGroup) {
+        updateMusclesWorked(getMuscleGroups([muscleGroup]));
+    } else {
+        const exerciseData = defaultExercises.find(e =>
+            e.name.toLowerCase() === exerciseName.toLowerCase()
+        );
+        if (exerciseData) {
+            const musclesToUpdate = getMuscleGroups(exerciseData.muscles);
+            updateMusclesWorked(musclesToUpdate);
+        }
     }
-    
+
+    // Close the modal and restore the name input for next add
     closeExerciseModal();
     showNotification('Exercise added!', 'success');
+    // After saving an exercise, switch to the workout tab so the user sees
+    // their exercise in the active workout.  This also applies when
+    // adding from the library.
+    try {
+        switchWorkoutTab('workout');
+    } catch (_) {}
 };
 
 function displayExercise(exercise) {
@@ -675,9 +801,13 @@ function displayExercise(exercise) {
     
     const exerciseItem = document.createElement('div');
     exerciseItem.className = 'exercise-item';
-    
-    const totalVolume = exercise.sets.reduce((sum, set) => sum + (set.weight * set.reps), 0);
-    
+    // Determine the index of this exercise within the current workout for later toggles
+    const exerciseIndex = currentWorkout.exercises.indexOf(exercise);
+    // Calculate volume only from completed sets.  Unchecked sets are intentionally excluded.
+    const totalVolume = exercise.sets
+        .filter(set => set.completed)
+        .reduce((sum, set) => sum + (set.weight * set.reps), 0);
+
     exerciseItem.innerHTML = `
         <div class="exercise-header">
             <span class="exercise-name">${exercise.name}</span>
@@ -685,18 +815,18 @@ function displayExercise(exercise) {
         </div>
         <div class="exercise-sets">
             ${exercise.sets.map((set, index) => `
-                <div class="set-row">
+                <div class="set-row" data-exercise-index="${exerciseIndex}" data-set-index="${index}">
                     <span class="set-number">Set ${index + 1}</span>
-                    <span>${set.weight} lbs</span>
-                    <span>${set.reps} reps</span>
-                    <span class="set-status ${set.completed ? 'completed' : ''}">
+                    <input type="number" class="set-display-weight" data-exercise-index="${exerciseIndex}" data-set-index="${index}" value="${set.weight}" min="0">
+                    <input type="number" class="set-display-reps" data-exercise-index="${exerciseIndex}" data-set-index="${index}" value="${set.reps}" min="0">
+                    <span class="set-status ${set.completed ? 'completed' : ''}" data-exercise-index="${exerciseIndex}" data-set-index="${index}">
                         ${set.completed ? '✓' : '○'}
                     </span>
                 </div>
             `).join('')}
+            <button class="inline-add-set" data-exercise-index="${exerciseIndex}" title="Add Set"><i class="fas fa-plus"></i></button>
         </div>
     `;
-    
     exercisesList.appendChild(exerciseItem);
 }
 
@@ -708,24 +838,41 @@ window.finishWorkout = async () => {
     
     if (!confirm('Are you ready to finish this workout?')) return;
     
+    // Warn the user if there are any sets without a completion mark.
+    const hasIncompleteSets = currentWorkout.exercises.some(exercise =>
+        exercise.sets.some(set => !set.completed)
+    );
+    if (hasIncompleteSets) {
+        showNotification('Some sets were left unchecked and will not be counted towards volume.', 'info');
+    }
+
     clearInterval(workoutTimer);
     
     const endTime = new Date();
     const duration = Math.floor((endTime - currentWorkout.startTime) / 1000); // in seconds
     
-    // Calculate total volume
+    // Calculate total volume from completed sets only. Sets that remain unchecked are ignored.
     const totalVolume = currentWorkout.exercises.reduce((total, exercise) => {
-        return total + exercise.sets.reduce((sum, set) => sum + (set.weight * set.reps), 0);
+        const exerciseVolume = exercise.sets
+            .filter(set => set.completed)
+            .reduce((sum, set) => sum + (set.weight * set.reps), 0);
+        return total + exerciseVolume;
     }, 0);
     
     try {
         // Save workout to Firestore
-        await addDoc(collection(db, 'users', currentUser.uid, 'workouts'), { userId: currentUser.uid, 
+        // Capture an optional title from the input box.  Empty titles are omitted.
+        const workoutTitleInput = document.getElementById('workout-title');
+        const workoutTitle = workoutTitleInput ? workoutTitleInput.value.trim() : '';
+
+        await addDoc(collection(db, 'users', currentUser.uid, 'workouts'), {
+            userId: currentUser.uid,
             startTime: Timestamp.fromDate(currentWorkout.startTime),
             endTime: Timestamp.fromDate(endTime),
             duration: duration,
             exercises: currentWorkout.exercises,
             totalVolume: totalVolume,
+            title: workoutTitle || null,
             createdAt: serverTimestamp()
         });
         
@@ -753,15 +900,36 @@ window.finishWorkout = async () => {
         const data = snap.exists() ? snap.data() : {};
         const currentStats = data?.stats ?? { totalWorkouts: 0, totalWeight: 0 };
 
+        // Compute new streak: if the last workout was yesterday, increment streak; otherwise reset to 1
+        let newStreak = 1;
+        try {
+            const lastWorkoutTS = currentStats?.lastWorkout;
+            if (lastWorkoutTS?.toDate) {
+                const lastDate = lastWorkoutTS.toDate();
+                const nowDate = new Date();
+                const diffDays = Math.floor((nowDate - lastDate) / (24 * 60 * 60 * 1000));
+                if (diffDays === 1) {
+                    newStreak = (currentStats.currentStreak || 0) + 1;
+                } else {
+                    newStreak = 1;
+                }
+            }
+        } catch (_) {
+            newStreak = 1;
+        }
         await updateDoc(userRef, {
         'stats.totalWorkouts': (currentStats.totalWorkouts ?? 0) + 1,
         'stats.totalWeight': (currentStats.totalWeight ?? 0) + totalVolume,
+        'stats.currentStreak': newStreak,
         'stats.lastWorkout': serverTimestamp()
         });
         
         // Reset workout UI
         document.getElementById('active-workout').style.display = 'none';
         document.getElementById('workout-timer').textContent = '00:00:00';
+        // Clear workout title field if present
+        const titleInput = document.getElementById('workout-title');
+        if (titleInput) titleInput.value = '';
         currentWorkout = null;
         
         // Reload workout history
@@ -781,6 +949,9 @@ window.cancelWorkout = () => {
     clearInterval(workoutTimer);
     document.getElementById('active-workout').style.display = 'none';
     document.getElementById('workout-timer').textContent = '00:00:00';
+    // Clear workout title field if present
+    const titleInput = document.getElementById('workout-title');
+    if (titleInput) titleInput.value = '';
     currentWorkout = null;
     
     showNotification('Workout cancelled', 'info');
@@ -808,13 +979,17 @@ async function loadWorkoutHistory() {
         querySnapshot.forEach((doc) => {
             const workout = doc.data();
             const date = workout.startTime.toDate();
-            const exercises = workout.exercises.map(e => e.name).join(', ');
+            // Use the workout title if present; otherwise display the exercise names
+            let displayName = workout.title;
+            if (!displayName || displayName.trim() === '') {
+                displayName = workout.exercises.map(e => e.name).join(', ');
+            }
             
             const historyItem = document.createElement('div');
             historyItem.className = 'history-item';
             historyItem.innerHTML = `
                 <div class="history-date">${date.toLocaleDateString()} - ${date.toLocaleTimeString()}</div>
-                <div class="history-exercises">${exercises}</div>
+                <div class="history-exercises">${displayName}</div>
                 <div class="history-stats">
                     <span>Duration: ${formatDuration(workout.duration)}</span>
                     <span>Volume: ${workout.totalVolume} lbs</span>
@@ -891,12 +1066,23 @@ function displayRoutines() {
     userRoutines.forEach(routine => {
         const routineItem = document.createElement('div');
         routineItem.className = 'routine-item';
+        // The routine item contains the name, exercise count and an edit button.  Clicking the name starts a workout.
         routineItem.innerHTML = `
-            <div class="routine-name">${routine.name}</div>
-            <div class="routine-exercises">${routine.exercises.length} exercises</div>
+            <div class="routine-info" style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+              <div class="routine-name" style="flex:1; cursor:pointer;">${routine.name}</div>
+              <div class="routine-exercises" style="white-space:nowrap;">${routine.exercises.length} exercises</div>
+              <button class="edit-routine-btn" data-routine-id="${routine.id}" title="Edit routine"><i class="fas fa-edit"></i></button>
+            </div>
         `;
-        routineItem.onclick = () => startRoutineWorkout(routine);
-        
+        // Start the workout when the routine name or exercises count is clicked
+        routineItem.querySelector('.routine-name').addEventListener('click', () => startRoutineWorkout(routine));
+        routineItem.querySelector('.routine-exercises').addEventListener('click', () => startRoutineWorkout(routine));
+        // Bind edit button
+        const editBtn = routineItem.querySelector('.edit-routine-btn');
+        editBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            editRoutine(routine.id);
+        });
         routinesList.appendChild(routineItem);
     });
 }
@@ -907,42 +1093,219 @@ function startRoutineWorkout(routine) {
     
     // Pre-populate with routine exercises
     routine.exercises.forEach(exercise => {
-        currentWorkout.exercises.push({
+        // Copy sets; ensure each set has a completed field reset to false
+        const sets = Array.isArray(exercise.sets)
+            ? exercise.sets.map(set => ({ ...set, completed: false }))
+            : [];
+        const newExercise = {
             name: exercise.name,
-            sets: exercise.sets.map(set => ({ ...set, completed: false })),
+            sets: sets,
             timestamp: new Date()
-        });
-        displayExercise(currentWorkout.exercises[currentWorkout.exercises.length - 1]);
+        };
+        currentWorkout.exercises.push(newExercise);
+        displayExercise(newExercise);
+        // If the exercise has a muscleGroup property, update muscles worked immediately
+        if (exercise.muscleGroup) {
+            updateMusclesWorked(getMuscleGroups([exercise.muscleGroup]));
+        }
     });
-    
+
     showNotification(`Started workout with ${routine.name} routine`, 'success');
 }
+
+// Allow the user to edit a routine by adding custom exercises.  For simplicity
+// this implementation prompts the user for the exercise name, the body part hit
+// and the number of sets.  New exercises are appended to the routine.  If you
+// need more advanced editing (e.g. removing exercises), you can extend this
+// helper accordingly.
+window.editRoutine = async (routineId) => {
+    // Open a modal for editing this routine.  Store the routine ID for
+    // reference when saving.  The actual edits are performed in
+    // saveRoutineExercise().
+    editingRoutineId = routineId;
+    openRoutineExerciseModal();
+};
+
+// --------------------------------------------------------------
+// Routine Exercise Modal Helpers
+//
+// These functions control the modal used for adding or editing
+// exercises within a routine.  They avoid reliance on browser
+// prompts, instead presenting a consistent UI with drop-downs for
+// selecting the target muscle group and number of sets.  An
+// optional global variable `editingRoutineId` indicates which
+// routine is being modified.
+
+// Show the routine exercise modal and clear previous input.  If
+// editingRoutineId is not set, the modal will still open but
+// saving will have no effect.
+window.openRoutineExerciseModal = () => {
+    const modal = document.getElementById('routine-exercise-modal');
+    if (!modal) return;
+    // Clear form fields
+    const nameInput = document.getElementById('routine-exercise-name');
+    if (nameInput) nameInput.value = '';
+    const catSelect = document.getElementById('routine-muscle-category');
+    const subSelect = document.getElementById('routine-muscle-sub');
+    const setsInput = document.getElementById('routine-sets-count');
+    if (catSelect) catSelect.value = '';
+    if (subSelect) {
+        subSelect.innerHTML = '<option value="">Select specific muscle</option>';
+        subSelect.style.display = 'none';
+    }
+    if (setsInput) setsInput.value = '';
+    modal.style.display = 'flex';
+};
+
+// Close the routine exercise modal
+window.closeRoutineExerciseModal = () => {
+    const modal = document.getElementById('routine-exercise-modal');
+    if (modal) modal.style.display = 'none';
+};
+
+// Save a new exercise to the currently editing routine.  This will
+// append the exercise to the routine's existing list of exercises in
+// Firestore, along with a selected muscle group and default sets.
+window.saveRoutineExercise = async () => {
+    try {
+        if (!currentUser || !editingRoutineId) {
+            showNotification('No routine selected for editing.', 'error');
+            return;
+        }
+        const nameInput = document.getElementById('routine-exercise-name');
+        const catSelect = document.getElementById('routine-muscle-category');
+        const subSelect = document.getElementById('routine-muscle-sub');
+        const setsInput = document.getElementById('routine-sets-count');
+
+        const exerciseName = (nameInput && nameInput.value.trim()) || '';
+        if (!exerciseName) {
+            showNotification('Please enter a name for the exercise.', 'error');
+            return;
+        }
+        const category = catSelect ? catSelect.value : '';
+        const sub = subSelect ? subSelect.value : '';
+        // Determine the muscle group: prefer sub-group if provided,
+        // otherwise use the category itself.  This allows one-option
+        // categories (e.g. arms) to skip the sub-select entirely.
+        let muscleGroup = '';
+        if (sub && sub.trim()) {
+            muscleGroup = sub.trim();
+        } else if (category) {
+            // Use title-case for consistency
+            muscleGroup = category.charAt(0).toUpperCase() + category.slice(1);
+        }
+        // Determine number of sets; default to 3 if blank or invalid
+        let numSets = parseInt(setsInput && setsInput.value);
+        if (isNaN(numSets) || numSets <= 0) numSets = 3;
+        // Build default sets array
+        const sets = [];
+        for (let i = 0; i < numSets; i++) {
+            sets.push({ weight: 0, reps: 0, completed: false });
+        }
+        // Fetch the routine doc and append the exercise
+        const routineRef = doc(db, 'users', currentUser.uid, 'routines', editingRoutineId);
+        const routineSnap = await getDoc(routineRef);
+        if (!routineSnap.exists()) {
+            showNotification('Routine not found.', 'error');
+            return;
+        }
+        const routineData = routineSnap.data() || {};
+        const exercises = Array.isArray(routineData.exercises) ? routineData.exercises.slice() : [];
+        exercises.push({ name: exerciseName, sets, muscleGroup });
+        await updateDoc(routineRef, { exercises });
+        showNotification('Exercise added to routine!', 'success');
+        // Refresh routines list
+        await loadRoutines();
+        // Close the modal
+        closeRoutineExerciseModal();
+    } catch (err) {
+        console.error('Error saving routine exercise:', err);
+        showNotification('Error saving exercise to routine.', 'error');
+    }
+};
 
 // ===============================================
 // Progress Tab Functions
 // ===============================================
-window.addPR = async () => {
-    const exercise = prompt('Exercise name:');
-    if (!exercise) return;
-    
-    const weight = prompt('Weight (lbs):');
-    if (!weight) return;
-    
-    const reps = prompt('Reps:');
-    if (!reps) return;
-    
+// Show the PR modal instead of using prompts
+window.addPR = () => {
+    openPrModal();
+};
+
+// Open the personal record modal and reset fields/selects
+window.openPrModal = () => {
+    const modal = document.getElementById('pr-modal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    // Reset inputs
+    const exInput = document.getElementById('pr-exercise');
+    const wtInput = document.getElementById('pr-weight');
+    const repsInput = document.getElementById('pr-reps');
+    if (exInput) exInput.value = '';
+    if (wtInput) wtInput.value = '';
+    if (repsInput) repsInput.value = '';
+    // Reset selects
+    const catSelect = document.getElementById('pr-muscle-category');
+    const subSelect = document.getElementById('pr-muscle-sub');
+    if (catSelect) catSelect.value = '';
+    if (subSelect) {
+        subSelect.innerHTML = '<option value="">Select specific muscle</option>';
+        subSelect.style.display = 'none';
+        subSelect.value = '';
+    }
+};
+
+// Close the PR modal
+window.closePrModal = () => {
+    const modal = document.getElementById('pr-modal');
+    if (modal) modal.style.display = 'none';
+};
+
+// Save PR from modal inputs.  This mirrors the previous prompt-based logic but
+// uses the selected muscle group from the drop-down.
+window.savePR = async () => {
+    const exerciseName = document.getElementById('pr-exercise')?.value;
+    const weightVal = document.getElementById('pr-weight')?.value;
+    const repsVal = document.getElementById('pr-reps')?.value;
+    if (!exerciseName) {
+        showNotification('Please enter an exercise name', 'error');
+        return;
+    }
+    const weight = weightVal ? parseFloat(weightVal) : null;
+    const reps = repsVal ? parseInt(repsVal) : null;
+    if (weight === null || isNaN(weight) || reps === null || isNaN(reps)) {
+        showNotification('Please enter valid weight and reps', 'error');
+        return;
+    }
+    // Determine muscle group from selects
+    const catSelect = document.getElementById('pr-muscle-category');
+    const subSelect = document.getElementById('pr-muscle-sub');
+    let muscleGroup = null;
+    if (subSelect && subSelect.style.display !== 'none' && subSelect.value) {
+        muscleGroup = subSelect.value;
+    } else if (catSelect && catSelect.value) {
+        const opts = muscleOptions[catSelect.value] || [];
+        muscleGroup = subSelect && subSelect.value ? subSelect.value : (opts[0] || catSelect.value);
+    }
     try {
         const userRef = doc(db, 'users', currentUser.uid);
         await updateDoc(userRef, {
-            [`stats.personalRecords.${exercise}`]: {
-                weight: parseFloat(weight),
-                reps: parseInt(reps),
+            [`stats.personalRecords.${exerciseName}`]: {
+                weight: weight,
+                reps: reps,
+                muscleGroup: muscleGroup || null,
                 date: serverTimestamp()
             }
         });
-        
+        // Immediately reflect the muscle worked if specified
+        if (muscleGroup) {
+            updateMusclesWorked(getMuscleGroups([muscleGroup]));
+        }
         await loadPRs();
+        // Refresh user data to update streak and PR counters
+        await loadUserData();
         showNotification('Personal Record added! 🏆', 'success');
+        closePrModal();
     } catch (error) {
         console.error('Error adding PR:', error);
         showNotification('Error adding PR', 'error');
@@ -1114,7 +1477,7 @@ async function loadProgressPhotos() {
   if (!container) return;
   container.innerHTML = '';
 
-  for (const d of qSnap.docs) {
+    for (const d of qSnap.docs) {
     const data = d.data() || {};
     // NOTE: getDownloadURL() will fail with "storage/unauthorized" if Storage rules reject reads or App Check enforcement is ON without a valid token.
     let url = await resolveStorageURL(data.url || data.path);
@@ -1125,15 +1488,76 @@ async function loadProgressPhotos() {
     }
 
     // Only render if we have a valid HTTPS URL. Never fall back to a raw Storage path.
-    const img = document.createElement('img');
     if (!url || !/^https?:\/\//i.test(url)) {
       console.warn('[photos] skipping render; unresolved URL for', data.path || data.url);
       continue;
     }
+    const img = document.createElement('img');
     img.src = url;
     img.alt = data.name || 'Progress photo';
     img.className = 'progress-photo';
+    // Attach metadata to the image element for deletion.  Use
+    // explicit attributes so they can be reliably read later.
+    img.dataset.docId = d.id;
+    img.dataset.storagePath = data.path || '';
+    // When the user clicks on an image, offer to delete it.  Upon
+    // confirmation, the image will be removed from both Firebase
+    // Storage (if possible) and Firestore, and also removed from the
+    // DOM immediately so the user sees it disappear.
+    img.addEventListener('click', async (ev) => {
+      ev.stopPropagation();
+      const confirmDelete = confirm('Delete this progress photo?');
+      if (!confirmDelete) return;
+      const docId = img.dataset.docId;
+      const storagePath = img.dataset.storagePath;
+      try {
+        await deleteProgressPhoto(docId, storagePath);
+      } finally {
+        // Remove the element from the DOM regardless of errors
+        img.remove();
+      }
+    });
     container.appendChild(img);
+  }
+}
+
+// Delete a progress photo given its Firestore document ID and Storage path.
+// This helper removes the image file from Firebase Storage and deletes
+// the corresponding Firestore document.  After deletion it refreshes
+// the progress photo list.
+async function deleteProgressPhoto(docId, storagePath) {
+  try {
+    const userId = auth.currentUser?.uid;
+    if (!userId) {
+      showNotification('Please log in to delete photos.', 'error');
+      return;
+    }
+    if (!docId) {
+      console.warn('Missing docId for deleteProgressPhoto');
+      return;
+    }
+    // Delete the Storage object if we have a path
+    if (storagePath) {
+      try {
+        const fileRef = ref(storage, storagePath);
+        await deleteObject(fileRef);
+      } catch (err) {
+        console.warn('Failed to delete storage object:', err?.message || err);
+      }
+    }
+    // Delete the Firestore document
+    try {
+      const photoRef = doc(db, `users/${userId}/progressPhotos/${docId}`);
+      await deleteDoc(photoRef);
+    } catch (err) {
+      console.warn('Failed to delete Firestore photo document:', err?.message || err);
+    }
+    // Refresh the UI
+    await loadProgressPhotos();
+    showNotification('Photo deleted.', 'success');
+  } catch (err) {
+    console.error('Error deleting progress photo:', err);
+    showNotification('Failed to delete photo.', 'error');
   }
 }
 
@@ -1193,9 +1617,42 @@ async function loadMeasurements() {
             if (latest.calves) document.getElementById('calves-input').placeholder = `${latest.calves}" (last)`;
         }
         
-        // Update chart placeholder
-        document.getElementById('measurements-chart').innerHTML = 
-            '<p>Chart visualization coming soon! Track your progress over time.</p>';
+        // Populate the measurements history.  Fetch up to the last 20
+        // measurement entries ordered by date descending and display
+        // them in a simple table.  This gives users insight into
+        // their progress over time without requiring an external
+        // charting library.
+        {
+            const histSnap = await getDocs(query(measurementsRef, orderBy('date', 'desc'), qLimit(20)));
+            const rows = [];
+            histSnap.forEach((d) => {
+                const m = d.data() || {};
+                const dt = m.date && m.date.toDate ? m.date.toDate() : null;
+                const formatted = dt ? dt.toLocaleDateString() : '';
+                rows.push({
+                    date: formatted,
+                    weight: m.weight ?? '',
+                    chest: m.chest ?? '',
+                    waist: m.waist ?? '',
+                    arms: m.arms ?? '',
+                    thighs: m.thighs ?? '',
+                    calves: m.calves ?? ''
+                });
+            });
+            const container = document.getElementById('measurements-chart');
+            if (container) {
+                if (rows.length === 0) {
+                    container.innerHTML = '<p>No measurements recorded yet.</p>';
+                } else {
+                    let tableHtml = '<table class="measurements-table"><thead><tr><th>Date</th><th>Weight (lbs)</th><th>Chest"</th><th>Waist"</th><th>Arms"</th><th>Thighs"</th><th>Calves"</th></tr></thead><tbody>';
+                    rows.forEach(row => {
+                        tableHtml += `<tr><td>${row.date}</td><td>${row.weight}</td><td>${row.chest}</td><td>${row.waist}</td><td>${row.arms}</td><td>${row.thighs}</td><td>${row.calves}</td></tr>`;
+                    });
+                    tableHtml += '</tbody></table>';
+                    container.innerHTML = tableHtml;
+                }
+            }
+        }
     } catch (error) {
         console.error('Error loading measurements:', error);
     }
@@ -1243,8 +1700,8 @@ function displayExercises(category) {
         `;
         
         exerciseCard.onclick = () => {
-            document.getElementById('exercise-name').value = exercise.name;
-            addExercise();
+            // Launch the add exercise modal with the exercise name prefilled
+            addExercise(exercise.name);
         };
         
         exercisesGrid.appendChild(exerciseCard);
@@ -1310,6 +1767,91 @@ document.addEventListener('DOMContentLoaded', () => {
     _photoInputLib.dataset.wired = '1';
   }
 
+  // Setup muscle group drop-downs for the exercise and PR modals.  When the
+  // category changes, populate the sub-group select with the appropriate
+  // options.  If the category has only one option, hide the sub-select.
+  const catSelect = document.getElementById('muscle-category');
+  const subSelect = document.getElementById('muscle-sub');
+  if (catSelect && subSelect) {
+    catSelect.addEventListener('change', () => {
+      const selected = catSelect.value;
+      const subs = muscleOptions[selected] || [];
+      // Clear previous options
+      subSelect.innerHTML = '<option value="">Select specific muscle</option>';
+      if (subs.length > 1) {
+        subSelect.style.display = '';
+        subs.forEach(mus => {
+          const opt = document.createElement('option');
+          opt.value = mus;
+          opt.textContent = mus;
+          subSelect.appendChild(opt);
+        });
+      } else if (subs.length === 1) {
+        subSelect.style.display = 'none';
+        // Preselect the only option for convenience
+        subSelect.value = subs[0];
+      } else {
+        subSelect.style.display = 'none';
+        subSelect.value = '';
+      }
+    });
+  }
+
+  // Setup muscle group drop-downs for the PR modal
+  const prCatSelect = document.getElementById('pr-muscle-category');
+  const prSubSelect = document.getElementById('pr-muscle-sub');
+  if (prCatSelect && prSubSelect) {
+    prCatSelect.addEventListener('change', () => {
+      const selected = prCatSelect.value;
+      const subs = muscleOptions[selected] || [];
+      // Clear previous options and set placeholder
+      prSubSelect.innerHTML = '<option value="">Select specific muscle</option>';
+      if (subs.length > 1) {
+        prSubSelect.style.display = '';
+        subs.forEach(mus => {
+          const opt = document.createElement('option');
+          opt.value = mus;
+          opt.textContent = mus;
+          prSubSelect.appendChild(opt);
+        });
+      } else if (subs.length === 1) {
+        prSubSelect.style.display = 'none';
+        prSubSelect.value = subs[0];
+      } else {
+        prSubSelect.style.display = 'none';
+        prSubSelect.value = '';
+      }
+    });
+  }
+
+  // Setup muscle group drop-downs for the routine exercise modal.  When
+  // the main category changes, populate the sub-select accordingly.
+  const rtCatSelect = document.getElementById('routine-muscle-category');
+  const rtSubSelect = document.getElementById('routine-muscle-sub');
+  if (rtCatSelect && rtSubSelect) {
+    rtCatSelect.addEventListener('change', () => {
+      const selected = rtCatSelect.value;
+      const subs = muscleOptions[selected] || [];
+      // Reset sub options
+      rtSubSelect.innerHTML = '<option value="">Select specific muscle</option>';
+      if (subs.length > 1) {
+        rtSubSelect.style.display = '';
+        subs.forEach(mus => {
+          const opt = document.createElement('option');
+          opt.value = mus;
+          opt.textContent = mus;
+          rtSubSelect.appendChild(opt);
+        });
+      } else if (subs.length === 1) {
+        rtSubSelect.style.display = 'none';
+        rtSubSelect.value = subs[0];
+      } else {
+        rtSubSelect.style.display = 'none';
+        rtSubSelect.value = '';
+      }
+    });
+  }
+
   const searchInput = document.getElementById('exercise-search');
   if (searchInput) {
     searchInput.addEventListener('input', (e) => {
@@ -1339,12 +1881,90 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
 
         exerciseCard.onclick = () => {
-          document.getElementById('exercise-name').value = exercise.name;
-          addExercise();
+          // Launch the add exercise modal with the exercise name prefilled
+          addExercise(exercise.name);
         };
 
         exercisesGrid.appendChild(exerciseCard);
       });
+    });
+  }
+
+  // Delegate click events on the exercises list to toggle set completion
+  const exercisesListEl = document.getElementById('exercises-list');
+  if (exercisesListEl && !exercisesListEl.dataset.toggling) {
+    exercisesListEl.addEventListener('click', (e) => {
+      const target = e.target;
+      if (!target || !target.classList) return;
+      // Toggle set completion when clicking the status circle
+      if (target.classList.contains('set-status')) {
+        const exIndex = parseInt(target.dataset.exerciseIndex);
+        const setIndex = parseInt(target.dataset.setIndex);
+        if (isNaN(exIndex) || isNaN(setIndex)) return;
+        const exerciseObj = currentWorkout?.exercises?.[exIndex];
+        if (!exerciseObj) return;
+        const setObj = exerciseObj.sets[setIndex];
+        setObj.completed = !setObj.completed;
+        target.classList.toggle('completed');
+        target.textContent = setObj.completed ? '✓' : '○';
+        // Update the volume displayed for this exercise
+        const parentExerciseEl = target.closest('.exercise-item');
+        if (parentExerciseEl) {
+          const volumeEl = parentExerciseEl.querySelector('.exercise-volume');
+          const newVol = exerciseObj.sets.filter(s => s.completed).reduce((sum, s) => sum + s.weight * s.reps, 0);
+          if (volumeEl) volumeEl.textContent = `${newVol} lbs`;
+        }
+        return;
+      }
+      // Add a new set inline when clicking the plus button
+      if (target.classList.contains('inline-add-set') || (target.parentElement && target.parentElement.classList && target.parentElement.classList.contains('inline-add-set'))) {
+        // If the user clicks the icon within the button, use the button as target
+        const btn = target.classList.contains('inline-add-set') ? target : target.parentElement;
+        const exIndex = parseInt(btn.dataset.exerciseIndex);
+        if (isNaN(exIndex)) return;
+        const exerciseObj = currentWorkout?.exercises?.[exIndex];
+        if (!exerciseObj) return;
+        // Append a new default set to the exercise
+        exerciseObj.sets.push({ weight: 0, reps: 0, completed: false });
+        // Re-render all exercises to maintain proper ordering and updated indexes
+        const list = document.getElementById('exercises-list');
+        if (list) {
+          list.innerHTML = '';
+          currentWorkout.exercises.forEach(ex => displayExercise(ex));
+        }
+        return;
+      }
+    });
+    exercisesListEl.dataset.toggling = '1';
+
+    // Listen for changes on weight and reps inputs to update the underlying
+    // workout data and recalculate volume.  This provides inline editing
+    // without popups.
+    exercisesListEl.addEventListener('input', (ev) => {
+      const tgt = ev.target;
+      if (!tgt || !tgt.classList) return;
+      if (tgt.classList.contains('set-display-weight') || tgt.classList.contains('set-display-reps')) {
+        const exIndex = parseInt(tgt.dataset.exerciseIndex);
+        const setIndex = parseInt(tgt.dataset.setIndex);
+        if (isNaN(exIndex) || isNaN(setIndex)) return;
+        const exerciseObj = currentWorkout?.exercises?.[exIndex];
+        if (!exerciseObj) return;
+        const setObj = exerciseObj.sets[setIndex];
+        if (tgt.classList.contains('set-display-weight')) {
+          const val = parseFloat(tgt.value);
+          setObj.weight = isNaN(val) || val < 0 ? 0 : val;
+        } else {
+          const val = parseInt(tgt.value);
+          setObj.reps = isNaN(val) || val < 0 ? 0 : val;
+        }
+        // Update volume display
+        const parentExerciseEl = tgt.closest('.exercise-item');
+        if (parentExerciseEl) {
+          const volumeEl = parentExerciseEl.querySelector('.exercise-volume');
+          const newVol = exerciseObj.sets.filter(s => s.completed).reduce((sum, s) => sum + s.weight * s.reps, 0);
+          if (volumeEl) volumeEl.textContent = `${newVol} lbs`;
+        }
+      }
     });
   }
 });
@@ -1483,8 +2103,8 @@ function getErrorMessage(errorCode) {
 function getMuscleGroups(muscleNames) {
     const muscleMapping = {
         'Pectorals': 'chest',
-        'Upper Chest': 'chest',
-        'Lower Chest': 'chest',
+        'Upper Chest': 'upper-chest',
+        'Lower Chest': 'lower-chest',
         'Triceps': 'triceps',
         'Biceps': 'biceps',
         'Forearms': 'forearms',
@@ -1502,7 +2122,7 @@ function getMuscleGroups(muscleNames) {
         'Calves': 'calves',
         'Abs': 'abs',
         'Lower Abs': 'abs',
-        'Obliques': 'abs'
+        'Obliques': 'obliques'
     };
     
     const muscles = [];
