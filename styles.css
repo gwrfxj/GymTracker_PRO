@@ -1216,12 +1216,27 @@
 
     .set-row {
         display: grid;
-        /* The set row consists of the set label, weight input, reps input
-           and the completion status indicator.  Explicitly size the
-           inputs to avoid unpredictable stretching on small screens. */
-        grid-template-columns: 60px 80px 80px 30px;
+        /* A set row uses three columns: the set label, a flex
+           container for the weight and reps inputs, and the
+           completion button.  The inputs will evenly share the
+           available space inside the flex container, preventing
+           oversized boxes on narrow screens. */
+        grid-template-columns: 60px 1fr 30px;
         gap: 10px;
         align-items: center;
+    }
+
+    /* Container for weight and reps inputs inside a set row.  Use flex
+       to split the space evenly between the two inputs, and ensure
+       they shrink gracefully on very small screens. */
+    .set-inputs {
+        display: flex;
+        gap: 10px;
+    }
+
+    .set-inputs .set-input {
+        flex: 1;
+        width: 100%;
     }
 
     .set-number {
@@ -1341,7 +1356,7 @@
 
     /* Editable weight and reps inputs inside the active workout sets */
     input.set-display-weight, input.set-display-reps {
-        min-width: 60px;
+        width: 100%;
         padding: 6px 8px;
         background: rgba(255, 255, 255, 0.05);
         border: 1px solid rgba(255, 255, 255, 0.2);
@@ -2147,8 +2162,12 @@
             grid-template-columns: 1fr;
         }
         
+        /* On narrower screens, the set row also uses three columns: the
+           set label, a single flexible container for weight/reps inputs,
+           and the completion button.  This prevents horizontal
+           overflow and ensures the inputs remain equal size. */
         .set-row {
-            grid-template-columns: 40px 1fr 1fr 60px;
+            grid-template-columns: 40px 1fr 40px;
         }
         
         .measurements-grid {
