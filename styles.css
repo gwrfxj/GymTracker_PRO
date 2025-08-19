@@ -850,18 +850,22 @@
     6. WORKOUT SECTION
     =============================================== */
     .workout-section {
-        min-height: 100vh;
-        background: var(--gradient-dark);
+    /* Ensure the workout section spans the full width of the viewport on all devices. */
+    width: 100%;
+    min-height: 100vh;
+    background: var(--gradient-dark);
     }
 
     .workout-header {
-        background: linear-gradient(135deg, var(--dark-red) 0%, var(--primary-black) 100%);
-        padding: 20px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        box-shadow: var(--shadow-lg);
-        border-bottom: 3px solid var(--gold);
+    /* Make sure the workout header fills the entire width of the page. */
+    width: 100%;
+    background: linear-gradient(135deg, var(--dark-red) 0%, var(--primary-black) 100%);
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: var(--shadow-lg);
+    border-bottom: 3px solid var(--gold);
     }
 
     .back-btn {
