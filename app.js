@@ -1279,6 +1279,20 @@ document.addEventListener('DOMContentLoaded', () => {
             console.warn('[photos] upgradeImg failed', e?.message || e);
         }
     }
+    const inputs = document.querySelectorAll('input[type="number"], input[type="text"], input[type="email"], input[type="password"]');
+    inputs.forEach(input => {
+        input.addEventListener('focus', (e) => {
+            e.target.setAttribute('autocomplete', 'off');
+        });
+    });
+
+    // Add viewport meta tag if not present
+    if (!document.querySelector('meta[name="viewport"]')) {
+        const viewport = document.createElement('meta');
+        viewport.name = 'viewport';
+        viewport.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+        document.head.appendChild(viewport);
+    }
 
     // Initial pass over existing images
     (async () => {
@@ -1355,19 +1369,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
     }
-    const inputs = document.querySelectorAll('input[type="number"], input[type="text"], input[type="email"], input[type="password"]');
-    inputs.forEach(input => {
-        input.addEventListener('focus', (e) => {
-            e.target.setAttribute('autocomplete', 'off');
-        });
-    });
-    // Add viewport meta tag if not present
-    if (!document.querySelector('meta[name="viewport"]')) {
-        const viewport = document.createElement('meta');
-        viewport.name = 'viewport';
-        viewport.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
-        document.head.appendChild(viewport);
-    });
+});
 
 // ===============================================
 // Utility Functions
@@ -1446,102 +1448,3 @@ function showNotification(message, type = 'info') {
         }, 300);
     }, 3000);
 }
-
-function formatDuration(seconds) {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-
-    if (hours > 0) {
-        return `${hours}h ${minutes}m`;
-    } else if (minutes > 0) {
-        return `${minutes}m ${secs}s`;
-    } else {
-        return `${secs}s`;
-    }
-}
-
-function getErrorMessage(errorCode) {
-    const errorMessages = {
-        'auth/email-already-in-use': 'This email is already registered. Try logging in instead.',
-        'auth/invalid-email': 'Invalid email address.',
-        'auth/operation-not-allowed': 'Operation not allowed. Please contact support.',
-        'auth/weak-password': 'Password is too weak. Use at least 6 characters.',
-        'auth/user-disabled': 'This account has been disabled.',
-        'auth/user-not-found': 'No account found with this email.',
-        'auth/wrong-password': 'Incorrect password.',
-        'auth/invalid-credential': 'Invalid email or password.',
-        'auth/too-many-requests': 'Too many failed attempts. Please try again later.',
-        'auth/network-request-failed': 'Network error. Please check your connection.',
-        'auth/configuration-not-found': 'Auth is not fully set up for this domain. Make sure your domain is authorized in Firebase Auth and the API key referrer allowlist includes this origin.'
-    };
-
-    return errorMessages[errorCode] || 'An error occurred. Please try again.';
-}
-
-function getMuscleGroups(muscleNames) {
-    const muscleMapping = {
-        'Pectorals': 'chest',
-        'Upper Chest': 'chest',
-        'Lower Chest': 'chest',
-        'Triceps': 'triceps',
-        'Biceps': 'biceps',
-        'Forearms': 'forearms',
-        'Front Delts': 'front-delts',
-        'Side Delts': 'side-delts',
-        'Rear Delts': 'rear-delts',
-        'All Delts': ['front-delts', 'side-delts', 'rear-delts'],
-        'Lats': 'lats',
-        'Mid Back': 'mid-back',
-        'Lower Back': 'lower-back',
-        'Traps': 'traps',
-        'Quads': 'quads',
-        'Hamstrings': 'hamstrings',
-        'Glutes': 'glutes',
-        'Calves': 'calves',
-        'Abs': 'abs',
-        'Lower Abs': 'abs',
-        'Obliques': 'abs'
-    };
-
-    const muscles = [];
-    muscleNames.forEach(name => {
-        const mapped = muscleMapping[name];
-        if (mapped) {
-            if (Array.isArray(mapped)) {
-                muscles.push(...mapped);
-            } else {
-                muscles.push(mapped);
-            }
-        }
-    });
-
-    return [...new Set(muscles)]; // Remove duplicates
-}
-
-// ===============================================
-// Placeholder Functions (for future implementation)
-// ===============================================
-window.toggleNotifications = () => {
-    showNotification('Notifications feature coming soon!', 'info');
-};
-
-window.toggleProfile = () => {
-    showNotification('Profile settings coming soon!', 'info');
-};
-
-// ===============================================
-// Initialize App
-// ===============================================
-console.log('GymTracker Pro initialized! ðŸ¢ðŸ’ª');
-
-// ---- TEMP: auth status logger (prints for ~60s)
-{
-    let _i = 0;
-    const _t = setInterval(() => {
-        _i++;
-        const u = auth.currentUser;
-        console.log('[AUTH]', !!u, u?.uid || null);
-        if (_i > 30) clearInterval(_t);
-    }, 2000);
-} s
