@@ -2256,6 +2256,38 @@
             height: 300px;
         }
 
+        /* Stack the workout header elements vertically on small screens.  This
+           prevents unused horizontal space and improves readability. */
+        .workout-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 12px;
+            text-align: left;
+        }
+        .workout-header .workout-title {
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+        .workout-header .workout-date {
+            width: 100%;
+        }
+
+        /* Stack measurement fields vertically for better mobile experience */
+        .measurements-grid {
+            grid-template-columns: 1fr;
+        }
+
+        /* Adjust weight input layout to wrap on small screens */
+        .weight-input-row {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        .weight-input-row input {
+            margin-bottom: 10px;
+        }
+
         /* Allow core dashboard containers to span the full width on small
            screens instead of capping them.  This helps prevent large
            blank margins or unused space on phone layouts. */
