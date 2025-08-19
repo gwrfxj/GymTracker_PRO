@@ -2307,6 +2307,28 @@
             width: 100%;
         }
 
+        /* Tighten padding on progress cards to conserve vertical space on phones */
+        .prs-section,
+        .photo-progress,
+        .measurements-section,
+        .weight-section {
+            padding: 15px;
+        }
+
+        /* Allow horizontal scrolling of the measurement history table and reduce font size */
+        #measurements-chart {
+            overflow-x: auto;
+        }
+        .measurements-table {
+            font-size: 12px;
+            min-width: 600px;
+        }
+
+        /* Reduce chart height on small screens */
+        #weight-chart {
+            height: 180px !important;
+        }
+
         /* Allow core dashboard containers to span the full width on small
            screens instead of capping them.  This helps prevent large
            blank margins or unused space on phone layouts. */
