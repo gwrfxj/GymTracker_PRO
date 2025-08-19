@@ -887,14 +887,14 @@ async function loadRoutines() {
     }
 }
 
-
 function displayRoutines() {
     const routinesList = document.getElementById('routines-list');
     if (!routinesList) return;
     routinesList.innerHTML = '';
 
     if (!Array.isArray(userRoutines) || userRoutines.length === 0) {
-        routinesList.innerHTML = '<p style="color: rgba(255,255,255,0.5);">No routines yet. Create your first routine!</p>';
+        routinesList.innerHTML =
+            '<p style="color: rgba(255,255,255,0.5);">No routines yet. Create your first routine!</p>';
         return;
     }
 
@@ -910,10 +910,13 @@ function displayRoutines() {
         routinesList.appendChild(routineItem);
     });
 
-    // add edit/delete controls after render
-    try { enhanceRoutineList(); } catch (e) { }
+    // after initial render, add edit/delete controls
+    try {
+        enhanceRoutineList();
+    } catch (e) {
+        console.warn('enhanceRoutineList() failed:', e);
+    }
 }
-
 
 
 function startRoutineWorkout(routine) {
