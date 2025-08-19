@@ -1308,6 +1308,21 @@
     transition: var(--transition-normal);
 }
 
+/* Responsive adjustments for the active workout set rows on small screens.  The
+   inputs expand to fill the available space, and the set row uses
+   flexible columns so that the layout doesn’t overflow the modal. */
+@media (max-width: 480px) {
+  .set-row {
+    grid-template-columns: 40px 1fr 1fr 28px;
+    gap: 8px;
+  }
+  .set-display-weight,
+  .set-display-reps {
+    width: 100%;
+    padding: 6px 4px;
+  }
+}
+
 .set-display-weight:focus,
 .set-display-reps:focus {
     outline: none;
