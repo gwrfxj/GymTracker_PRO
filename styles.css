@@ -2398,3 +2398,99 @@ MOBILE UI FIXES - Add to the end of your styles.css file
    These rules override earlier duplicates and clamp widths
    to prevent inputs and cards from spilling off-screen.
    ===================================================== */
+
+
+
+/* === PR & Photo action buttons === */
+.pr-item {
+  position: relative;
+}
+.pr-actions {
+  display: flex;
+  gap: 8px;
+}
+.pr-action-btn {
+  background: rgba(0,0,0,0.4);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: #fff;
+  border-radius: 999px;
+  width: 28px; height: 28px;
+  display: grid; place-items: center;
+  cursor: pointer;
+}
+.pr-action-btn.delete { background: #8b0000; border-color: #a00; }
+.pr-action-btn.edit { background: #333; }
+
+.photo-item { position: relative; }
+.photo-delete-btn {
+  position: absolute;
+  top: 8px; right: 8px;
+  width: 28px; height: 28px;
+  border-radius: 999px;
+  background: #8b0000;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.2);
+  display: grid; place-items: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+
+/* === Library dropdown filters === */
+.library-filters {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin: 16px 0 24px;
+}
+.library-filters .filter-group select {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: #fff;
+  padding: 10px 12px;
+  border-radius: 10px;
+}
+.library-filters .sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0;
+}
+
+/* === Charts wrap + tables === */
+.charts-wrap { width: 100%; }
+.measurements-table {
+  margin-top: 16px;
+  width: 100%;
+  overflow-x: auto;
+}
+.measurements-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.measurements-table th, .measurements-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  text-align: left;
+}
+.measurements-table th {
+  color: var(--gold);
+}
+
+/* Weight section */
+.weight-section { 
+  background: rgba(255,255,255,0.05);
+  border-radius: var(--radius-xl);
+  padding: 25px;
+  border: 1px solid rgba(255,255,255,0.1);
+  margin-top: 20px;
+}
+.weight-range-buttons { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.weight-range-btn {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.weight-range-btn.active {
+  background: var(--gradient-fire);
+  border-color: transparent;
+}
