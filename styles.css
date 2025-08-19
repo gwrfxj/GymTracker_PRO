@@ -1313,7 +1313,10 @@
    flexible columns so that the layout doesn’t overflow the modal. */
 @media (max-width: 480px) {
   .set-row {
-    grid-template-columns: 40px 1fr 1fr 28px;
+    /* On narrow devices, use fixed widths for weight and reps to avoid
+       fractional widths collapsing.  These values keep the inputs
+       legible while fitting within the modal. */
+    grid-template-columns: 40px 70px 70px 28px;
     gap: 8px;
   }
   .set-display-weight,
