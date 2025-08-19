@@ -1986,18 +1986,29 @@ async function loadWeightChart(rangeDays = 30) {
             q = query(measurementsRef, orderBy('date', 'asc'));
         }
         const snap = await getDocs(q);
-        const labels = [];
-        const data = [];
+        // Aggregate weights by date, taking the maximum weight for each day
+        const weightMap = {};
         snap.forEach(docSnap => {
             const d = docSnap.data();
             if (d.weight != null) {
                 const dt = d.date && d.date.toDate ? d.date.toDate() : null;
                 if (dt) {
-                    labels.push(dt.toLocaleDateString());
-                    data.push(d.weight);
+                    const dateStr = dt.toLocaleDateString();
+                    const w = d.weight;
+                    if (weightMap[dateStr] === undefined || w > weightMap[dateStr]) {
+                        weightMap[dateStr] = w;
+                    }
                 }
             }
         });
+        // Prepare sorted labels and corresponding data values
+        const labels = Object.keys(weightMap).sort((a, b) => {
+            // Convert locale date strings back to Date objects for sorting
+            const da = new Date(a);
+            const db = new Date(b);
+            return da - db;
+        });
+        const data = labels.map(l => weightMap[l]);
         // If no data points, clear chart and exit
         const canvas = document.getElementById('weight-chart');
         if (!canvas) return;
