@@ -1295,36 +1295,19 @@
    directly adjust values without popups.  They are styled similarly
    to other UI elements with a subtle border and dark background to
    indicate interactivity. */
-.set-display-weight,
-.set-display-reps {
-    width: 70px;
-    padding: 6px 8px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 2px solid rgba(255, 255, 255, 0.1);
-    border-radius: var(--radius-sm);
-    color: var(--primary-white);
-    text-align: center;
-    font-size: 14px;
-    transition: var(--transition-normal);
-}
+    .set-display-weight,
+    .set-display-reps {
+        width: 100%;
+        padding: 6px 8px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 2px solid rgba(255, 255, 255, 0.1);
+        border-radius: var(--radius-sm);
+        color: var(--primary-white);
+        text-align: center;
+        font-size: 14px;
+        transition: var(--transition-normal);
+    }
 
-/* Responsive adjustments for the active workout set rows on small screens.  The
-   inputs expand to fill the available space, and the set row uses
-   flexible columns so that the layout doesn’t overflow the modal. */
-@media (max-width: 480px) {
-  .set-row {
-    /* On narrow devices, use fixed widths for weight and reps to avoid
-       fractional widths collapsing.  These values keep the inputs
-       legible while fitting within the modal. */
-    grid-template-columns: 40px 70px 70px 28px;
-    gap: 8px;
-  }
-  .set-display-weight,
-  .set-display-reps {
-    width: 100%;
-    padding: 6px 4px;
-  }
-}
 
 .set-display-weight:focus,
 .set-display-reps:focus {
