@@ -17,7 +17,7 @@ import {
     sendPasswordResetEmail
 } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
 import { initializeFirestore, collection, addDoc, query, where, orderBy, onSnapshot, 
-  deleteDoc, doc, getDocs, updateDoc, serverTimestamp, Timestamp, setDoc, getDoc, limit as qLimit
+  deleteDoc, doc, getDocs, updateDoc, serverTimestamp, Timestamp, setDoc, getDoc, limit as qLimit, deleteField
 } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 
 import {
@@ -126,7 +126,28 @@ function updateDashboardStats(userData) {
         const streakEl = document.getElementById('streak-days');
         const prsWeekEl = document.getElementById('prs-week');
         if (streakEl) {
-            const streak = userData?.stats?.currentStreak || 0;
+            // Default to the stored streak. If the last workout is older
+            // than a day and the user hasn’t worked out today, reset to 0
+            let streak = userData?.stats?.currentStreak || 0;
+            try {
+                const lastWorkoutTS = userData?.stats?.lastWorkout;
+                if (lastWorkoutTS?.toDate) {
+                    const lastDate = lastWorkoutTS.toDate();
+                    const nowDate = new Date();
+                    const diffDays = Math.floor((nowDate - lastDate) / (24 * 60 * 60 * 1000));
+                    if (diffDays > 1) {
+                        // If the last workout was more than one day ago, show 0 to
+                        // indicate the streak has been broken. The streak will
+                        // reset to 1 when the next workout is completed.
+                        streak = 0;
+                    } else if (diffDays === 0) {
+                        // If a second workout occurs on the same day, keep the current streak
+                        streak = userData?.stats?.currentStreak || 0;
+                    }
+                }
+            } catch (_) {
+                // ignore errors and keep default streak
+            }
             streakEl.textContent = streak;
         }
         if (prsWeekEl) {
@@ -653,12 +674,6 @@ function startTimer() {
 // automatically set.  Without a prefilledName, the input is shown and
 // cleared so that the user can type their own exercise name.
 window.addExercise = (prefilledName = '') => {
-    // If no workout has been started yet, automatically begin one so that
-    // exercises have somewhere to live.  This also shows the active
-    // workout section and starts the timer.
-    if (!currentWorkout) {
-        startWorkout();
-    }
     const modal = document.getElementById('exercise-modal');
     const nameInput = document.getElementById('exercise-name');
     const setsContainer = document.getElementById('sets-container');
@@ -816,6 +831,13 @@ window.saveExercise = () => {
     }
 
     // Add to current workout
+    // If a workout hasn't started yet, begin one now so that the
+    // exercise has somewhere to live.  This defers starting the
+    // timer until the user explicitly saves the first exercise.
+    if (!currentWorkout) {
+        startWorkout();
+    }
+
     const exercise = {
         name: exerciseName,
         sets: sets,
@@ -883,6 +905,9 @@ function displayExercise(exercise) {
                     <span class="set-status ${set.completed ? 'completed' : ''}" data-exercise-index="${exerciseIndex}" data-set-index="${index}">
                         ${set.completed ? '✓' : '○'}
                     </span>
+                    ${exercise.sets.length > 1 ? `
+                    <button class="set-remove" data-exercise-index="${exerciseIndex}" data-set-index="${index}" title="Remove set">&minus;</button>
+                    ` : `<span class="set-remove-placeholder"></span>`}
                 </div>
             `).join('')}
             <button class="inline-add-set" data-exercise-index="${exerciseIndex}" title="Add Set"><i class="fas fa-plus"></i></button>
@@ -961,7 +986,8 @@ window.finishWorkout = async () => {
         const data = snap.exists() ? snap.data() : {};
         const currentStats = data?.stats ?? { totalWorkouts: 0, totalWeight: 0 };
 
-        // Compute new streak: if the last workout was yesterday, increment streak; otherwise reset to 1
+        // Compute new streak: maintain the streak on the same day, increment
+        // it if the last workout was yesterday, otherwise reset to 1.
         let newStreak = 1;
         try {
             const lastWorkoutTS = currentStats?.lastWorkout;
@@ -969,9 +995,14 @@ window.finishWorkout = async () => {
                 const lastDate = lastWorkoutTS.toDate();
                 const nowDate = new Date();
                 const diffDays = Math.floor((nowDate - lastDate) / (24 * 60 * 60 * 1000));
-                if (diffDays === 1) {
+                if (diffDays === 0) {
+                    // Same day: keep the current streak
+                    newStreak = currentStats.currentStreak || 1;
+                } else if (diffDays === 1) {
+                    // Consecutive day: increment streak
                     newStreak = (currentStats.currentStreak || 0) + 1;
                 } else {
+                    // Break in streak: start new streak at 1
                     newStreak = 1;
                 }
             }
@@ -1037,15 +1068,15 @@ async function loadWorkoutHistory() {
             return;
         }
         
-        querySnapshot.forEach((doc) => {
-            const workout = doc.data();
+        querySnapshot.forEach((docSnap) => {
+            const workout = docSnap.data();
+            const docId = docSnap.id;
             const date = workout.startTime.toDate();
             // Use the workout title if present; otherwise display the exercise names
             let displayName = workout.title;
             if (!displayName || displayName.trim() === '') {
                 displayName = workout.exercises.map(e => e.name).join(', ');
             }
-            
             const historyItem = document.createElement('div');
             historyItem.className = 'history-item';
             historyItem.innerHTML = `
@@ -1056,7 +1087,16 @@ async function loadWorkoutHistory() {
                     <span>Volume: ${workout.totalVolume} lbs</span>
                 </div>
             `;
-            
+            // Add delete button for this workout
+            const delBtn = document.createElement('button');
+            delBtn.className = 'history-delete';
+            delBtn.innerHTML = '&times;';
+            delBtn.title = 'Delete workout';
+            delBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                deleteWorkout(docId);
+            });
+            historyItem.appendChild(delBtn);
             historyList.appendChild(historyItem);
         });
     } catch (error) {
@@ -1174,6 +1214,45 @@ function startRoutineWorkout(routine) {
     showNotification(`Started workout with ${routine.name} routine`, 'success');
 }
 
+// Delete the currently editing routine.  This can be triggered from the
+// routine exercise modal.  Confirm with the user before deletion and
+// reload routines afterwards.
+window.deleteRoutine = async () => {
+    try {
+        if (!currentUser || !editingRoutineId) {
+            showNotification('No routine selected to delete.', 'error');
+            return;
+        }
+        if (!confirm('Are you sure you want to delete this routine?')) return;
+        await deleteDoc(doc(db, 'users', currentUser.uid, 'routines', editingRoutineId));
+        editingRoutineId = null;
+        closeRoutineExerciseModal();
+        await loadRoutines();
+        showNotification('Routine deleted.', 'success');
+    } catch (err) {
+        console.error('Error deleting routine:', err);
+        showNotification('Failed to delete routine.', 'error');
+    }
+};
+
+// Delete a workout from the user's workout history by document ID.  After
+// deletion, reload the workout history and user stats.  A confirmation
+// dialog prevents accidental removals.
+window.deleteWorkout = async (workoutId) => {
+    try {
+        if (!currentUser || !workoutId) return;
+        if (!confirm('Delete this workout?')) return;
+        await deleteDoc(doc(db, 'users', currentUser.uid, 'workouts', workoutId));
+        await loadWorkoutHistory();
+        // Refresh overall stats and streaks
+        await loadUserData();
+        showNotification('Workout deleted.', 'success');
+    } catch (err) {
+        console.error('Error deleting workout:', err);
+        showNotification('Failed to delete workout.', 'error');
+    }
+};
+
 // Allow the user to edit a routine by adding custom exercises.  For simplicity
 // this implementation prompts the user for the exercise name, the body part hit
 // and the number of sets.  New exercises are appended to the routine.  If you
@@ -1215,6 +1294,11 @@ window.openRoutineExerciseModal = () => {
         subSelect.style.display = 'none';
     }
     if (setsInput) setsInput.value = '';
+    // Show or hide the delete button based on whether a routine is being edited.
+    const delBtn = document.querySelector('#routine-exercise-modal .delete-routine-btn');
+    if (delBtn) {
+        delBtn.style.display = editingRoutineId ? '' : 'none';
+    }
     modal.style.display = 'flex';
 };
 
@@ -1391,17 +1475,105 @@ async function loadPRs() {
         Object.entries(prs).forEach(([exercise, record]) => {
             const prItem = document.createElement('div');
             prItem.className = 'pr-item';
+            // Click on the item (but not the delete button) to edit this PR
+            prItem.addEventListener('click', (e) => {
+                // Prevent click if the delete button was clicked
+                if (e.target.closest('.pr-delete')) return;
+                editPR(exercise, record);
+            });
+            // Delete button
+            const delBtn = document.createElement('button');
+            delBtn.className = 'pr-delete';
+            delBtn.innerHTML = '&times;';
+            delBtn.title = 'Delete PR';
+            delBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                deletePR(exercise);
+            });
             prItem.innerHTML = `
                 <div class="pr-exercise">${exercise}</div>
                 <div class="pr-value">${record.weight} lbs × ${record.reps}</div>
                 <div class="pr-date">${record.date?.toDate ? record.date.toDate().toLocaleDateString() : 'Recent'}</div>
             `;
+            prItem.appendChild(delBtn);
             prsList.appendChild(prItem);
         });
     } catch (error) {
         console.error('Error loading PRs:', error);
     }
 }
+
+// Delete a personal record for the given exercise.  This removes the
+// exercise key from the user's stats.personalRecords object in
+// Firestore using deleteField().
+window.deletePR = async (exerciseName) => {
+    try {
+        if (!currentUser || !exerciseName) return;
+        if (!confirm(`Delete the personal record for ${exerciseName}?`)) return;
+        const userRef = doc(db, 'users', currentUser.uid);
+        // Use deleteField() to remove the nested key
+        await updateDoc(userRef, {
+            [`stats.personalRecords.${exerciseName}`]: deleteField()
+        });
+        await loadPRs();
+        // Refresh user data to update counters
+        await loadUserData();
+        showNotification('PR deleted.', 'success');
+    } catch (err) {
+        console.error('Error deleting PR:', err);
+        showNotification('Failed to delete PR.', 'error');
+    }
+};
+
+// Edit an existing personal record.  Opens the PR modal with
+// prefilled values for the selected exercise.  Users can update
+// weight, reps, and muscle group and save via savePR().
+window.editPR = (exerciseName, record) => {
+    // Prefill the modal inputs
+    try {
+        openPrModal();
+        const exInput = document.getElementById('pr-exercise');
+        const wtInput = document.getElementById('pr-weight');
+        const repsInput = document.getElementById('pr-reps');
+        const catSelect = document.getElementById('pr-muscle-category');
+        const subSelect = document.getElementById('pr-muscle-sub');
+        if (exInput) {
+            exInput.value = exerciseName;
+        }
+        if (wtInput) wtInput.value = record?.weight || '';
+        if (repsInput) repsInput.value = record?.reps || '';
+        // Set muscle group selects based on record.muscleGroup
+        if (record?.muscleGroup) {
+            // Find category that contains this muscle group
+            let foundCat = '';
+            for (const [cat, subs] of Object.entries(muscleOptions)) {
+                if (subs.map(s => s.toLowerCase()).includes(record.muscleGroup.toLowerCase())) {
+                    foundCat = cat;
+                    break;
+                }
+            }
+            if (foundCat) {
+                catSelect.value = foundCat;
+                // Trigger change event to populate subs
+                const evt = new Event('change');
+                catSelect.dispatchEvent(evt);
+                // Try to select the exact muscle group if available
+                const opts = muscleOptions[foundCat] || [];
+                if (opts.includes(record.muscleGroup)) {
+                    if (opts.length > 1) {
+                        subSelect.style.display = '';
+                        subSelect.value = record.muscleGroup;
+                    } else {
+                        subSelect.style.display = 'none';
+                        subSelect.value = record.muscleGroup;
+                    }
+                }
+            }
+        }
+    } catch (err) {
+        console.error('Error editing PR:', err);
+    }
+};
 
 // Photo Progress
 window.addProgressPhoto = () => choosePhotoSource();
@@ -2124,6 +2296,25 @@ document.addEventListener('DOMContentLoaded', () => {
     exercisesListEl.addEventListener('click', (e) => {
       const target = e.target;
       if (!target || !target.classList) return;
+      // Handle set deletion when clicking the remove button
+      if (target.classList.contains('set-remove')) {
+        const exIndex = parseInt(target.dataset.exerciseIndex);
+        const setIndex = parseInt(target.dataset.setIndex);
+        if (isNaN(exIndex) || isNaN(setIndex)) return;
+        const exerciseObj = currentWorkout?.exercises?.[exIndex];
+        if (!exerciseObj) return;
+        // Only allow deletion if there is more than one set
+        if (exerciseObj.sets.length > 1) {
+          exerciseObj.sets.splice(setIndex, 1);
+          // Re-render exercises list to update indexes and volume
+          const list = document.getElementById('exercises-list');
+          if (list) {
+            list.innerHTML = '';
+            currentWorkout.exercises.forEach(ex => displayExercise(ex));
+          }
+        }
+        return;
+      }
       // Toggle set completion when clicking the status circle
       if (target.classList.contains('set-status')) {
         const exIndex = parseInt(target.dataset.exerciseIndex);
