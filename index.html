@@ -25,7 +25,7 @@
     <!-- Loading Screen -->
     <div id="loading-screen" class="loading-screen">
       <div class="loading-content">
-        <div class="turtle-loader">🐢</div>
+        <div class="turtle-loader"><img src="turtle-favicon.png" alt="Loading..." class="turtle-loader-img"></div>
         <h2>GymTracker Pro</h2>
         <div class="loading-bar">
           <div class="loading-progress"></div>
@@ -137,7 +137,7 @@
         <div class="header-left">
           <div class="logo-small">
             <!-- Swap out the turtle emoji for a PNG. This maintains branding consistency across devices. -->
-            <img src="turtle-small.png" alt="GymTracker Logo" class="logo-small-img" />
+            <img src="turtle-favicon.png" alt="GymTracker Logo" class="logo-small-img" />
             <span class="brand-name">GymTracker Pro</span>
           </div>
         </div>
@@ -452,7 +452,7 @@
             <div class="workout-container">
               <!-- Workout Controls -->
               <div class="workout-controls">
-                <button class="start-workout-btn" onclick="startWorkout()">
+                <button class="start-workout-btn" id="start-workout-btn" onclick="startWorkout()">
                   <i class="fas fa-play"></i>
                   <span>Start New Workout</span>
                 </button>
@@ -778,7 +778,8 @@
               </select>
             </div>
             <input type="number" id="routine-sets-count" placeholder="Number of sets (default 3)" min="1" />
-            <button class="save-routine-ex-btn" onclick="saveRoutineExercise()">
+            <div id="routine-existing-exercises" class="routine-existing-list" style="margin:10px 0 14px 0;"></div>
+<button class="save-routine-ex-btn" onclick="saveRoutineExercise()">
               <i class="fas fa-check"></i>
               <span>Save Exercise</span>
             </button>
