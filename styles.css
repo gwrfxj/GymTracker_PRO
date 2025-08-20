@@ -540,14 +540,14 @@
     =============================================== */
     .main-dashboard {
         /* Make sure the main dashboard spans the full viewport width on all devices */
-        width: 100vw;
+        width: 100%;
         min-height: 100vh;
         background: var(--gradient-dark);
     }
 
     .dashboard-header {
         /* Ensure the header stretches across the viewport. */
-        width: 100vw;
+        width: 100%;
         background: linear-gradient(135deg, var(--primary-black) 0%, var(--dark-blue) 100%);
         padding: 15px 20px;
         display: flex;
@@ -1247,7 +1247,7 @@
         /* Force the workout section to span the full viewport width.  Using
            100vw bypasses any max-width or parent constraints that may
            center content on mobile devices. */
-        width: 100vw;
+        width: 100%;
     }
 
     .set-number {
@@ -1357,7 +1357,7 @@
     .set-display-weight,
     .set-display-reps {
         /* Force the header to fill the full viewport width. */
-        width: 100vw;
+        width: 100%;
         padding: 6px 8px;
         background: rgba(255, 255, 255, 0.05);
         border: 2px solid rgba(255, 255, 255, 0.1);
@@ -2021,6 +2021,57 @@
     }
     .save-pr-btn:hover {
         transform: scale(1.05);
+    }
+    /* Fix routine modal layout */
+    #routine-exercise-modal .exercise-form {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    #routine-exercise-modal .exercise-form input,
+    #routine-exercise-modal .exercise-form select {
+        width: 100%;
+        padding: 12px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: var(--radius-md);
+        color: var(--primary-white);
+        font-size: 16px;
+    }
+
+    /* List of exercises in routine */
+    .routine-exercises-list {
+        max-height: 200px;
+        overflow-y: auto;
+        margin: 15px 0;
+        padding: 10px;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: var(--radius-md);
+    }
+
+    .routine-exercise-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px;
+        margin-bottom: 8px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: var(--radius-sm);
+    }
+
+    .routine-exercise-delete {
+        background: rgba(220, 38, 38, 0.2);
+        border: none;
+        color: var(--primary-red);
+        padding: 4px 8px;
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+    }
+
+    .routine-exercise-delete:hover {
+        background: rgba(220, 38, 38, 0.4);
+        color: var(--primary-white);
     }
 
     /* Save button for routine exercise modal */
@@ -2810,3 +2861,38 @@
   background: rgba(220, 38, 38, 0.35);
   border-color: rgba(220, 38, 38, 1);
 }
+/* mobile overflow guard */
+html, body { max-width: 100%; overflow-x: hidden; }
+.main-dashboard, .tab-content, .progress-tab, .container, #content { overflow-x: hidden; }
+
+/* Loader image sizing */
+.turtle-loader-img { width: 84px; height: 84px; display: inline-block; animation: bounce 1s infinite; }
+
+
+/* ==== Add Exercise modal polish ==== */
+#exercise-modal .exercise-form input[type="text"],
+#exercise-modal .exercise-form input[type="number"],
+#exercise-modal .exercise-form select {
+  background: rgba(255,255,255,.06);
+  color: var(--primary-white);
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: var(--radius-md);
+}
+#exercise-modal .exercise-form input:focus,
+#exercise-modal .exercise-form select:focus {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px rgba(255,215,0,.15);
+}
+
+/* Full-width buttons (like before) */
+#exercise-modal .add-set-btn,
+#exercise-modal .save-exercise-btn {
+  width: 100%;
+}
+
+/* Stretch weight + reps together to fill the row */
+#exercise-modal .set-row { display: grid; grid-template-columns: 64px 1fr; column-gap: 8px; align-items: center; }
+#exercise-modal .set-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
+#exercise-modal .set-complete { display: none; } /* hide check in modal */
+#exercise-modal .set-display-weight, #exercise-modal .set-display-reps { width: 100%; max-width: none; }
