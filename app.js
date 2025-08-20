@@ -640,6 +640,12 @@ async function updateMusclesWorked(muscles) {
 // Workout Functions
 // ===============================================
 window.startWorkout = () => {
+    // Check if workout already in progress
+    if (currentWorkout) {
+        showNotification('Workout already in session! Please finish or cancel the current workout.', 'error');
+        return;
+    }
+    
     currentWorkout = {
         startTime: new Date(),
         exercises: []
@@ -796,6 +802,24 @@ window.saveExercise = () => {
         return;
     }
     
+    // Check muscle selection
+    const catSelect = document.getElementById('muscle-category');
+    const subSelect = document.getElementById('muscle-sub');
+    
+    if (!catSelect.value) {
+        showNotification('Please select a muscle group', 'error');
+        return;
+    }
+    
+    // If sub-select is visible and has options, it must be selected
+    if (subSelect && subSelect.style.display !== 'none') {
+        const hasOptions = subSelect.options.length > 1; // More than just placeholder
+        if (hasOptions && !subSelect.value) {
+            showNotification('Please select a specific muscle', 'error');
+            return;
+        }
+    }
+    
     const sets = [];
     const setRows = document.querySelectorAll('#sets-container .set-row');
     
@@ -814,14 +838,7 @@ window.saveExercise = () => {
         return;
     }
     
-    // Build the exercise object.  Include a muscleGroup property based on
-    // the selected category/sub-group from the modal.  We first check the
-    // sub-group select (only visible when multiple choices exist).  If a
-    // specific muscle is selected, use it; otherwise default to the first
-    // muscle in the chosen category.  If no category was chosen, the
-    // muscleGroup will be undefined and we fall back to the library data.
-    const catSelect = document.getElementById('muscle-category');
-    const subSelect = document.getElementById('muscle-sub');
+    // Build the exercise object
     let muscleGroup = null;
     if (subSelect && subSelect.style.display !== 'none' && subSelect.value) {
         muscleGroup = subSelect.value;
@@ -831,9 +848,6 @@ window.saveExercise = () => {
     }
 
     // Add to current workout
-    // If a workout hasn't started yet, begin one now so that the
-    // exercise has somewhere to live.  This defers starting the
-    // timer until the user explicitly saves the first exercise.
     if (!currentWorkout) {
         startWorkout();
     }
@@ -850,10 +864,7 @@ window.saveExercise = () => {
     // Update UI
     displayExercise(exercise);
 
-    // Update the muscle map immediately based on either the selected muscle
-    // group or the default exercise library.  If the user selected a
-    // specific muscle, use that; otherwise use the library-defined
-    // muscles.
+    // Update the muscle map
     if (muscleGroup) {
         updateMusclesWorked(getMuscleGroups([muscleGroup]));
     } else {
@@ -869,9 +880,7 @@ window.saveExercise = () => {
     // Close the modal and restore the name input for next add
     closeExerciseModal();
     showNotification('Exercise added!', 'success');
-    // After saving an exercise, switch to the workout tab so the user sees
-    // their exercise in the active workout.  This also applies when
-    // adding from the library.
+    // Switch to workout tab
     try {
         switchWorkoutTab('workout');
     } catch (_) {}
@@ -884,7 +893,7 @@ function displayExercise(exercise) {
     exerciseItem.className = 'exercise-item';
     // Determine the index of this exercise within the current workout for later toggles
     const exerciseIndex = currentWorkout.exercises.indexOf(exercise);
-    // Calculate volume only from completed sets.  Unchecked sets are intentionally excluded.
+    // Calculate volume only from completed sets. Unchecked sets are intentionally excluded.
     const totalVolume = exercise.sets
         .filter(set => set.completed)
         .reduce((sum, set) => sum + (set.weight * set.reps), 0);
@@ -905,9 +914,7 @@ function displayExercise(exercise) {
                     <span class="set-status ${set.completed ? 'completed' : ''}" data-exercise-index="${exerciseIndex}" data-set-index="${index}">
                         ${set.completed ? '✓' : '○'}
                     </span>
-                    ${exercise.sets.length > 1 ? `
                     <button class="set-remove" data-exercise-index="${exerciseIndex}" data-set-index="${index}" title="Remove set">&minus;</button>
-                    ` : `<span class="set-remove-placeholder"></span>`}
                 </div>
             `).join('')}
             <button class="inline-add-set" data-exercise-index="${exerciseIndex}" title="Add Set"><i class="fas fa-plus"></i></button>
@@ -1275,11 +1282,78 @@ window.deleteMeasurement = async (docId) => {
 // need more advanced editing (e.g. removing exercises), you can extend this
 // helper accordingly.
 window.editRoutine = async (routineId) => {
-    // Open a modal for editing this routine.  Store the routine ID for
-    // reference when saving.  The actual edits are performed in
-    // saveRoutineExercise().
     editingRoutineId = routineId;
-    openRoutineExerciseModal();
+    
+    // Load and display existing exercises
+    const routine = userRoutines.find(r => r.id === routineId);
+    if (!routine) return;
+    
+    const modal = document.getElementById('routine-exercise-modal');
+    if (!modal) return;
+    
+    // Clear form fields
+    const nameInput = document.getElementById('routine-exercise-name');
+    if (nameInput) nameInput.value = '';
+    const catSelect = document.getElementById('routine-muscle-category');
+    const subSelect = document.getElementById('routine-muscle-sub');
+    const setsInput = document.getElementById('routine-sets-count');
+    if (catSelect) catSelect.value = '';
+    if (subSelect) {
+        subSelect.innerHTML = '<option value="">Select specific muscle</option>';
+        subSelect.style.display = 'none';
+    }
+    if (setsInput) setsInput.value = '';
+    
+    // Display existing exercises with delete buttons
+    const existingDiv = document.getElementById('routine-existing-exercises');
+    if (existingDiv && routine.exercises && routine.exercises.length > 0) {
+        existingDiv.innerHTML = '<h4 style="color: var(--gold); margin-bottom: 10px;">Current Exercises:</h4>';
+        const listDiv = document.createElement('div');
+        listDiv.className = 'routine-exercises-list';
+        
+        routine.exercises.forEach((ex, idx) => {
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'routine-exercise-item';
+            itemDiv.innerHTML = `
+                <span>${ex.name} (${ex.sets ? ex.sets.length : 0} sets)</span>
+                <button class="routine-exercise-delete" onclick="deleteExerciseFromRoutine('${routineId}', ${idx})">Remove</button>
+            `;
+            listDiv.appendChild(itemDiv);
+        });
+        existingDiv.appendChild(listDiv);
+    } else if (existingDiv) {
+        existingDiv.innerHTML = '';
+    }
+    
+    // Show delete button
+    const delBtn = document.querySelector('#routine-exercise-modal .delete-routine-btn');
+    if (delBtn) {
+        delBtn.style.display = '';
+    }
+    
+    modal.style.display = 'flex';
+};
+
+// Add new function to delete individual exercises from routine
+window.deleteExerciseFromRoutine = async (routineId, exerciseIndex) => {
+    try {
+        const routine = userRoutines.find(r => r.id === routineId);
+        if (!routine) return;
+        
+        const exercises = [...routine.exercises];
+        exercises.splice(exerciseIndex, 1);
+        
+        const routineRef = doc(db, 'users', currentUser.uid, 'routines', routineId);
+        await updateDoc(routineRef, { exercises });
+        
+        await loadRoutines();
+        // Refresh the modal
+        editRoutine(routineId);
+        showNotification('Exercise removed from routine', 'success');
+    } catch (err) {
+        console.error('Error removing exercise:', err);
+        showNotification('Failed to remove exercise', 'error');
+    }
 };
 
 // --------------------------------------------------------------
@@ -2335,24 +2409,33 @@ document.addEventListener('DOMContentLoaded', () => {
       const target = e.target;
       if (!target || !target.classList) return;
       // Handle set deletion when clicking the remove button
-      if (target.classList.contains('set-remove')) {
-        const exIndex = parseInt(target.dataset.exerciseIndex);
-        const setIndex = parseInt(target.dataset.setIndex);
-        if (isNaN(exIndex) || isNaN(setIndex)) return;
-        const exerciseObj = currentWorkout?.exercises?.[exIndex];
-        if (!exerciseObj) return;
-        // Only allow deletion if there is more than one set
-        if (exerciseObj.sets.length > 1) {
-          exerciseObj.sets.splice(setIndex, 1);
-          // Re-render exercises list to update indexes and volume
-          const list = document.getElementById('exercises-list');
-          if (list) {
-            list.innerHTML = '';
-            currentWorkout.exercises.forEach(ex => displayExercise(ex));
-          }
+        if (target.classList.contains('set-remove')) {
+            const exIndex = parseInt(target.dataset.exerciseIndex);
+            const setIndex = parseInt(target.dataset.setIndex);
+            if (isNaN(exIndex) || isNaN(setIndex)) return;
+            const exerciseObj = currentWorkout?.exercises?.[exIndex];
+            if (!exerciseObj) return;
+            
+            // If only one set, confirm deletion of entire exercise
+            if (exerciseObj.sets.length === 1) {
+                if (confirm('This will remove the entire exercise. Continue?')) {
+                    currentWorkout.exercises.splice(exIndex, 1);
+                } else {
+                    return;
+                }
+            } else {
+                // Multiple sets, just remove the one
+                exerciseObj.sets.splice(setIndex, 1);
+            }
+            
+            // Re-render exercises list
+            const list = document.getElementById('exercises-list');
+            if (list) {
+                list.innerHTML = '';
+                currentWorkout.exercises.forEach(ex => displayExercise(ex));
+            }
+            return;
         }
-        return;
-      }
       // Toggle set completion when clicking the status circle
       if (target.classList.contains('set-status')) {
         const exIndex = parseInt(target.dataset.exerciseIndex);
