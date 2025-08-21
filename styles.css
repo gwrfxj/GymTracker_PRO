@@ -1629,100 +1629,6 @@
         text-align: center;
     }
 
-    /* Measurements Section - Mobile Optimized */
-    .measurements-section {
-        background: rgba(255, 255, 255, 0.05);
-        border-radius: var(--radius-lg);
-        padding: 15px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .measurements-section h3 {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 15px;
-        color: var(--gold);
-        font-size: 18px;
-    }
-
-    .measurements-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 10px;
-        margin-bottom: 15px;
-    }
-
-    .measurement-item {
-        display: flex;
-        flex-direction: column;
-        gap: 3px;
-    }
-
-    .measurement-item label {
-        color: rgba(255, 255, 255, 0.7);
-        font-size: 11px;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    .measurement-item input {
-        padding: 8px;
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: var(--radius-sm);
-        color: var(--primary-white);
-        font-size: 14px;
-    }
-
-    .measurement-item input:focus {
-        outline: none;
-        border-color: var(--gold);
-    }
-
-    .measurements-history {
-        margin-top: 20px;
-        padding-top: 20px;
-        border-top: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .measurements-history h4 {
-        margin-bottom: 10px;
-        color: var(--primary-white);
-        font-size: 14px;
-    }
-
-    /* Measurements Table - Mobile Optimized */
-    /* Measurements Table - Mobile Optimized */
-    .measurements-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 11px;
-        color: var(--primary-white);
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: var(--radius-sm);
-        overflow: hidden;
-        display: block;
-        overflow-x: auto;
-        table-layout: fixed; /* Add this for consistent column widths */
-    }
-
-    /* Desktop measurements table styling */
-    @media (min-width: 768px) {
-    .measurements-table {
-        font-size: 14px;
-    }
-    
-    .measurements-table th,
-    .measurements-table td {
-        padding: 10px 8px;
-    }
-    
-    /* Set specific column widths for desktop */
-    .measurements-table th:first-child { width: 100px; }
-    .measurements-table th:last-child { width: 60px; }
-    }
 
     .measurements-table thead {
         background: rgba(255, 255, 255, 0.05);
@@ -2402,10 +2308,7 @@
             grid-template-columns: 40px 1fr 30px 30px;
         }
         
-        .measurements-grid {
-            grid-template-columns: repeat(2, 1fr);
-        }
-        
+
         .exercises-grid {
             grid-template-columns: 1fr;
         }
@@ -2469,12 +2372,7 @@
         .workout-header .workout-date {
             width: 100%;
         }
-
-        /* Stack measurement fields vertically for better mobile experience */
-        .measurements-grid {
-            grid-template-columns: repeat(2, 1fr);
-        }
-
+    
         /* Adjust weight input layout to wrap on small screens */
         .weight-input-row {
             flex-direction: row;
@@ -3042,4 +2940,109 @@ html, body { max-width: 100%; overflow-x: hidden; }
   height: 28px; 
   line-height: 26px; 
   cursor: pointer; 
+}
+
+/* Fix for mobile measurement inputs overflow */
+.measurements-section {
+    width: 100%;
+    box-sizing: border-box;
+    overflow: hidden; /* Prevent any overflow */
+}
+
+.measurements-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.measurement-item {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    width: 100%;
+    min-width: 0; /* Critical: allows grid items to shrink below their content size */
+}
+
+.measurement-item input {
+    width: 100%;
+    box-sizing: border-box; /* Include padding and border in width calculation */
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--radius-sm);
+    color: var(--primary-white);
+    font-size: 14px;
+    min-width: 0; /* Allow inputs to shrink */
+}
+
+/* Mobile-specific adjustments */
+@media (max-width: 768px) {
+    .progress-container {
+        padding: 10px;
+        width: 100%;
+        box-sizing: border-box;
+        overflow-x: hidden;
+    }
+    
+    .measurements-section {
+        padding: 12px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    
+    .measurements-grid {
+        gap: 8px; /* Slightly smaller gap on mobile */
+    }
+    
+    .measurement-item input {
+        padding: 8px 6px; /* Slightly less horizontal padding on mobile */
+        font-size: 14px;
+    }
+}
+
+/* Extra small screens */
+@media (max-width: 480px) {
+    .measurements-grid {
+        gap: 6px; /* Even smaller gap for very small screens */
+    }
+    
+    .measurement-item label {
+        font-size: 10px; /* Slightly smaller labels */
+    }
+    
+    .measurement-item input {
+        padding: 6px 4px; /* Minimal padding for tiny screens */
+        font-size: 13px;
+    }
+}
+
+/* Ensure the entire progress tab doesn't cause horizontal scroll */
+#progress-tab {
+    width: 100%;
+    overflow-x: hidden;
+    box-sizing: border-box;
+}
+
+/* Fix potential table overflow as well */
+.measurements-table {
+    width: 100%;
+    table-layout: auto; /* Let table adjust naturally */
+    box-sizing: border-box;
+}
+
+@media (max-width: 480px) {
+    .measurements-table {
+        font-size: 10px;
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+    }
+    
+    .measurements-table th,
+    .measurements-table td {
+        padding: 4px 3px; /* Tighter padding on mobile */
+        white-space: nowrap;
+    }
 }
