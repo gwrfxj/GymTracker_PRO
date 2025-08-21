@@ -1,4 +1,4 @@
-    /* ===============================================
+/* ===============================================
     GymTracker Pro - Main Stylesheet
     Primary Colors: Red, Black, White, Dark Blue, RGB Gradients
     Accent: Gold
@@ -1512,102 +1512,95 @@
     }
 
     /* ===============================================
-    9. PROGRESS TAB
+    9. PROGRESS TAB - MOBILE OPTIMIZED
     =============================================== */
     .progress-container {
-        display: grid;
-        gap: 30px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        padding: 10px;
     }
 
-    .prs-section,
-    .photo-progress,
-    .measurements-section {
+    /* Personal Records Section - Mobile Optimized */
+    .prs-section {
         background: rgba(255, 255, 255, 0.05);
-        border-radius: var(--radius-xl);
-        padding: 25px;
+        border-radius: var(--radius-lg);
+        padding: 15px;
         border: 1px solid rgba(255, 255, 255, 0.1);
     }
 
-    .prs-section h3,
-    .photo-progress h3,
-    .measurements-section h3 {
+    .prs-section h3 {
         display: flex;
         align-items: center;
-        gap: 10px;
-        margin-bottom: 20px;
+        gap: 8px;
+        margin-bottom: 15px;
         color: var(--gold);
-        font-size: 20px;
+        font-size: 18px;
     }
 
     .prs-list {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-        gap: 15px;
-        margin-bottom: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-bottom: 15px;
     }
 
     .pr-item {
         background: linear-gradient(135deg, rgba(255, 215, 0, 0.1) 0%, rgba(220, 38, 38, 0.1) 100%);
-        border: 2px solid var(--gold);
+        border: 1px solid var(--gold);
         border-radius: var(--radius-md);
-        padding: 15px;
-        text-align: center;
+        padding: 12px;
         position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
     }
 
     .pr-exercise {
-        font-weight: 700;
+        font-weight: 600;
         color: var(--primary-white);
-        margin-bottom: 10px;
+        font-size: 14px;
     }
 
     .pr-value {
-        font-size: 24px;
-        font-weight: 900;
+        font-size: 20px;
+        font-weight: 700;
         color: var(--gold);
     }
 
     .pr-date {
-        font-size: 12px;
+        font-size: 11px;
         color: rgba(255, 255, 255, 0.5);
-        margin-top: 5px;
     }
 
-    .add-pr-btn,
-    .add-photo-btn,
-    .save-measurements-btn {
-        padding: 12px 24px;
-        background: var(--gradient-fire);
-        border: none;
-        border-radius: var(--radius-md);
-        color: var(--primary-white);
-        font-weight: 600;
-        cursor: pointer;
-        transition: var(--transition-normal);
+    /* Photo Progress Section - Mobile Optimized */
+    .photo-progress {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: var(--radius-lg);
+        padding: 15px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .photo-progress h3 {
         display: flex;
         align-items: center;
-        justify-content: center;
-        gap: 10px;
-    }
-
-    .add-pr-btn:hover,
-    .add-photo-btn:hover,
-    .save-measurements-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: var(--shadow-lg);
+        gap: 8px;
+        margin-bottom: 15px;
+        color: var(--gold);
+        font-size: 18px;
     }
 
     .photo-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-        gap: 15px;
-        margin-bottom: 20px;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin-bottom: 15px;
     }
 
     .photo-item {
         position: relative;
         aspect-ratio: 1;
-        border-radius: var(--radius-md);
+        border-radius: var(--radius-sm);
         overflow: hidden;
         cursor: pointer;
         transition: var(--transition-normal);
@@ -1621,7 +1614,7 @@
 
     .photo-item:hover {
         transform: scale(1.05);
-        box-shadow: var(--shadow-lg);
+        box-shadow: var(--shadow-md);
     }
 
     .photo-date {
@@ -1631,38 +1624,55 @@
         right: 0;
         background: rgba(0, 0, 0, 0.7);
         color: var(--primary-white);
-        padding: 5px;
-        font-size: 10px;
+        padding: 3px;
+        font-size: 9px;
         text-align: center;
+    }
+
+    /* Measurements Section - Mobile Optimized */
+    .measurements-section {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: var(--radius-lg);
+        padding: 15px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .measurements-section h3 {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 15px;
+        color: var(--gold);
+        font-size: 18px;
     }
 
     .measurements-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 15px;
-        margin-bottom: 20px;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+        margin-bottom: 15px;
     }
 
     .measurement-item {
         display: flex;
         flex-direction: column;
-        gap: 5px;
+        gap: 3px;
     }
 
     .measurement-item label {
         color: rgba(255, 255, 255, 0.7);
-        font-size: 12px;
+        font-size: 11px;
         text-transform: uppercase;
-        letter-spacing: 1px;
+        letter-spacing: 0.5px;
     }
 
     .measurement-item input {
-        padding: 10px;
+        padding: 8px;
         background: rgba(255, 255, 255, 0.05);
         border: 1px solid rgba(255, 255, 255, 0.2);
         border-radius: var(--radius-sm);
         color: var(--primary-white);
-        font-size: 16px;
+        font-size: 14px;
     }
 
     .measurement-item input:focus {
@@ -1671,51 +1681,173 @@
     }
 
     .measurements-history {
-        margin-top: 30px;
-        padding-top: 30px;
+        margin-top: 20px;
+        padding-top: 20px;
         border-top: 1px solid rgba(255, 255, 255, 0.1);
     }
 
     .measurements-history h4 {
-        margin-bottom: 15px;
+        margin-bottom: 10px;
         color: var(--primary-white);
+        font-size: 14px;
     }
 
-/* Table for displaying historical body measurements.  Uses a dark
-   background and subtle borders to integrate with the overall
-   aesthetic. */
-.measurements-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 14px;
-    color: var(--primary-white);
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: var(--radius-md);
-    overflow: hidden;
-}
-.measurements-table thead {
-    background: rgba(255, 255, 255, 0.05);
-}
-.measurements-table th,
-.measurements-table td {
-    padding: 8px 12px;
-    text-align: center;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-.measurements-table tr:nth-child(even) {
-    background: rgba(255, 255, 255, 0.03);
-}
+    /* Measurements Table - Mobile Optimized */
+    /* Measurements Table - Mobile Optimized */
+    .measurements-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 11px;
+        color: var(--primary-white);
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: var(--radius-sm);
+        overflow: hidden;
+        display: block;
+        overflow-x: auto;
+        table-layout: fixed; /* Add this for consistent column widths */
+    }
+
+    /* Desktop measurements table styling */
+    @media (min-width: 768px) {
+    .measurements-table {
+        font-size: 14px;
+    }
+    
+    .measurements-table th,
+    .measurements-table td {
+        padding: 10px 8px;
+    }
+    
+    /* Set specific column widths for desktop */
+    .measurements-table th:first-child { width: 100px; }
+    .measurements-table th:last-child { width: 60px; }
+    }
+
+    .measurements-table thead {
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .measurements-table th,
+    .measurements-table td {
+        padding: 6px;
+        text-align: center;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        white-space: nowrap;
+    }
+
+    .measurements-table tr:nth-child(even) {
+        background: rgba(255, 255, 255, 0.03);
+    }
 
     #measurements-chart {
         background: rgba(0, 0, 0, 0.3);
         border-radius: var(--radius-md);
-        padding: 20px;
-        min-height: 200px;
+        padding: 15px;
+        min-height: 150px;
         display: flex;
         align-items: center;
         justify-content: center;
         color: rgba(255, 255, 255, 0.5);
+        font-size: 12px;
+        overflow-x: auto;
+    }
+
+    /* Weight Progress Section - Mobile Optimized */
+    .weight-section {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: var(--radius-lg);
+        padding: 15px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .weight-section h3 {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 15px;
+        color: var(--gold);
+        font-size: 18px;
+    }
+
+    .weight-input-row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 12px;
+    }
+
+    .weight-input-row input {
+        flex: 1;
+        padding: 10px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: var(--radius-md);
+        color: var(--primary-white);
+        font-size: 14px;
+    }
+
+    .weight-range-buttons {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+
+    .weight-range-btn {
+        padding: 8px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: var(--radius-md);
+        color: var(--primary-white);
+        font-size: 12px;
+        cursor: pointer;
+        transition: var(--transition-fast);
+        text-align: center;
+    }
+
+    .weight-range-btn.active,
+    .weight-range-btn:hover {
+        background: var(--gradient-fire);
+        border-color: var(--gold);
+        color: var(--primary-white);
+    }
+
+    #weight-chart {
+        width: 100%;
+        height: 180px !important;
+    }
+
+    /* Button Styles for Progress Tab */
+    .add-pr-btn,
+    .add-photo-btn,
+    .save-measurements-btn,
+    .save-weight-btn {
+        padding: 10px 16px;
+        background: var(--gradient-fire);
+        border: none;
+        border-radius: var(--radius-md);
+        color: var(--primary-white);
+        font-weight: 600;
+        cursor: pointer;
+        transition: var(--transition-normal);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        font-size: 14px;
+    }
+
+    .add-pr-btn:hover,
+    .add-photo-btn:hover,
+    .save-measurements-btn:hover,
+    .save-weight-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .save-weight-btn {
+        flex-shrink: 0;
     }
 
     /* ===============================================
@@ -2216,7 +2348,7 @@
     }
 
     /* ===============================================
-    13. RESPONSIVE DESIGN
+    13. RESPONSIVE DESIGN - ENHANCED FOR MOBILE
     =============================================== */
     @media (max-width: 768px) {
         .dashboard-header {
@@ -2277,6 +2409,11 @@
         .exercises-grid {
             grid-template-columns: 1fr;
         }
+
+        /* Enhanced mobile progress tab */
+        .prs-list {
+            grid-template-columns: 1fr;
+        }
     }
 
     @media (max-width: 480px) {
@@ -2335,27 +2472,28 @@
 
         /* Stack measurement fields vertically for better mobile experience */
         .measurements-grid {
-            grid-template-columns: 1fr;
+            grid-template-columns: repeat(2, 1fr);
         }
 
         /* Adjust weight input layout to wrap on small screens */
         .weight-input-row {
-            flex-direction: column;
-            align-items: stretch;
+            flex-direction: row;
+            align-items: center;
         }
         .weight-input-row input {
-            margin-bottom: 10px;
+            flex: 1;
         }
 
         /* Stack workout tab buttons vertically and make them full width on small screens */
         .workout-tabs {
-            flex-direction: column;
+            flex-direction: row;
+            flex-wrap: wrap;
             align-items: stretch;
             gap: 8px;
         }
         .workout-tab {
-            flex: none;
-            width: 100%;
+            flex: 1 1 calc(50% - 4px);
+            min-width: calc(50% - 4px);
         }
 
         /* Tighten padding on progress cards to conserve vertical space on phones */
@@ -2363,7 +2501,7 @@
         .photo-progress,
         .measurements-section,
         .weight-section {
-            padding: 15px;
+            padding: 12px;
         }
 
         /* Allow horizontal scrolling of the measurement history table and reduce font size */
@@ -2371,13 +2509,30 @@
             overflow-x: auto;
         }
         .measurements-table {
-            font-size: 12px;
-            min-width: 600px;
+            font-size: 10px;
+            min-width: 500px;
         }
 
-        /* Reduce chart height on small screens */
-        #weight-chart {
-            height: 180px !important;
+        /* Photo grid - 3 columns on mobile for better visibility */
+        .photo-grid {
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+        }
+
+        /* PR items stack vertically on mobile */
+        .prs-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .pr-item {
+            padding: 10px;
+        }
+
+        /* Weight range buttons - 2x2 grid on mobile */
+        .weight-range-buttons {
+            grid-template-columns: repeat(2, 1fr);
         }
 
         /* Allow core dashboard containers to span the full width on small
@@ -2391,8 +2546,8 @@
             width: 100%;
             margin-left: 0;
             margin-right: 0;
-            padding-left: 15px;
-            padding-right: 15px;
+            padding-left: 10px;
+            padding-right: 10px;
         }
 
         /* Ensure workout tab content spans the full width on small screens */
@@ -2400,6 +2555,22 @@
             max-width: none;
             margin-left: 0;
             margin-right: 0;
+            padding: 10px;
+        }
+
+        /* Progress photo improvements */
+        #progress-photos {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+        }
+        
+        #progress-photos img {
+            max-width: 100%;
+            height: auto;
+            aspect-ratio: 1;
+            object-fit: cover;
+            border-radius: 6px;
         }
     }
 
@@ -2524,10 +2695,10 @@
 
     /* Container for progress photos */
 #progress-photos {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px; /* spacing between photos */
-  margin-top: 15px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-top: 10px;
 }
 
 /* On small screens, stack the two muscle group selects vertically. */
@@ -2539,17 +2710,18 @@
 
 /* Each photo */
 #progress-photos img {
-  max-width: 150px;   /* make them smaller */
-  max-height: 150px;
-  object-fit: cover;  /* crop nicely instead of stretching */
-  border-radius: 8px; /* optional: rounded corners */
-  border: 2px solid #444;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
 }
 
 /* Inline note next to Photo Progress title */
 .photo-cap {
-  font-size: 0.85rem;
-  color: #9aa3ad; /* subtle gray */
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.5);
   margin-left: 8px;
   font-weight: 400;
 }
@@ -2605,12 +2777,6 @@
 /* ============================
    Photo Grid
    ============================ */
-.photo-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 0.75rem;
-}
-
 .photo-card {
   position: relative;
   border-radius: 8px;
@@ -2697,97 +2863,6 @@
 
 .pr-delete:hover {
   background: rgba(220, 38, 38, 0.8);
-}
-
-/* ===============================
-   Weight Progress Section Styles
-   =============================== */
-
-.weight-section {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: var(--radius-xl);
-  padding: 25px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  margin-top: 30px;
-}
-
-.weight-section h3 {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 20px;
-  color: var(--gold);
-  font-size: 20px;
-}
-
-.weight-input-row {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  margin-bottom: 15px;
-}
-
-.weight-input-row input {
-  flex: 1;
-  padding: 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: var(--radius-md);
-  color: var(--primary-white);
-  font-size: 16px;
-}
-
-.save-weight-btn {
-  background: var(--gradient-fire);
-  color: var(--primary-white);
-  border: none;
-  border-radius: var(--radius-md);
-  padding: 12px 16px;
-  font-size: 14px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  transition: background var(--transition-fast), color var(--transition-fast);
-}
-
-.save-weight-btn i {
-  pointer-events: none;
-}
-
-.save-weight-btn:hover {
-  background: var(--gradient-fire-hover, linear-gradient(45deg, #e53935, #d81b60));
-}
-
-.weight-range-buttons {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 15px;
-}
-
-.weight-range-btn {
-  flex: 1;
-  padding: 8px 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: var(--radius-md);
-  color: var(--primary-white);
-  font-size: 14px;
-  cursor: pointer;
-  transition: background var(--transition-fast), border-color var(--transition-fast);
-  text-align: center;
-}
-
-.weight-range-btn.active,
-.weight-range-btn:hover {
-  background: var(--gradient-fire);
-  border-color: var(--gold);
-  color: var(--primary-white);
-}
-
-#weight-chart {
-  width: 100%;
-  max-height: 240px;
 }
 
 /* Delete button for measurement history rows. Placed inside a table cell to
@@ -2896,3 +2971,75 @@ html, body { max-width: 100%; overflow-x: hidden; }
 #exercise-modal .set-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
 #exercise-modal .set-complete { display: none; } /* hide check in modal */
 #exercise-modal .set-display-weight, #exercise-modal .set-display-reps { width: 100%; max-width: none; }
+
+/* === Progress Photos Grid === */
+#progress-photos {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+#progress-photos img.progress-photo {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+#progress-photos img.progress-photo:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+}
+
+/* Desktop: 4-6 columns */
+@media (min-width: 768px) {
+  #progress-photos {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+}
+
+@media (min-width: 1200px) {
+  #progress-photos {
+    grid-template-columns: repeat(6, 1fr);
+    gap: 15px;
+  }
+}
+
+/* PR Grid - properly spaced on desktop */
+.prs-list { 
+  display: grid; 
+  grid-template-columns: 1fr; 
+  gap: 12px; 
+}
+
+@media (min-width: 768px) {
+  .prs-list {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .prs-list {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.pr-item { 
+  display: flex; 
+  align-items: center; 
+  justify-content: space-between; 
+  padding: 12px 14px; 
+}
+
+.pr-item .pr-delete { 
+  background: transparent; 
+  border: 0; 
+  width: 28px; 
+  height: 28px; 
+  line-height: 26px; 
+  cursor: pointer; 
+}
