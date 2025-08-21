@@ -126,23 +126,29 @@ function updateDashboardStats(userData) {
         const streakEl = document.getElementById('streak-days');
         const prsWeekEl = document.getElementById('prs-week');
         if (streakEl) {
-            // Default to the stored streak. If the last workout is older
-            // than a day and the user hasn’t worked out today, reset to 0
+            // Enhanced streak logic: allows 1 day skip, resets after 2+ days
             let streak = userData?.stats?.currentStreak || 0;
             try {
                 const lastWorkoutTS = userData?.stats?.lastWorkout;
                 if (lastWorkoutTS?.toDate) {
                     const lastDate = lastWorkoutTS.toDate();
                     const nowDate = new Date();
-                    const diffDays = Math.floor((nowDate - lastDate) / (24 * 60 * 60 * 1000));
-                    if (diffDays > 1) {
-                        // If the last workout was more than one day ago, show 0 to
-                        // indicate the streak has been broken. The streak will
-                        // reset to 1 when the next workout is completed.
+                    // Calculate days since last workout
+                    const msSinceLastWorkout = nowDate - lastDate;
+                    const daysSinceLastWorkout = Math.floor(msSinceLastWorkout / (24 * 60 * 60 * 1000));
+                    
+                    if (daysSinceLastWorkout === 0) {
+                        // Same day - keep current streak
+                        streak = userData?.stats?.currentStreak || 1;
+                    } else if (daysSinceLastWorkout === 1) {
+                        // Yesterday - streak continues
+                        streak = userData?.stats?.currentStreak || 1;
+                    } else if (daysSinceLastWorkout === 2) {
+                        // Skipped one day - streak maintained but show warning
+                        streak = userData?.stats?.currentStreak || 1;
+                    } else {
+                        // Skipped 2+ days - streak broken
                         streak = 0;
-                    } else if (diffDays === 0) {
-                        // If a second workout occurs on the same day, keep the current streak
-                        streak = userData?.stats?.currentStreak || 0;
                     }
                 }
             } catch (_) {
@@ -159,8 +165,6 @@ function updateDashboardStats(userData) {
                 if (record?.date?.toDate) {
                     const d = record.date.toDate();
                     if (d >= oneWeekAgo) count++;
-                } else {
-                    count++;
                 }
             });
             prsWeekEl.textContent = count;
@@ -1707,86 +1711,113 @@ window.openLibrary = () => {
 window.handlePhotoUpload = async function handlePhotoUpload(evt) {
   try {
     const input = evt?.target || evt?.currentTarget || null;
-    const file = input?.files ? input.files[0] : null;
-    if (!file) {
-      console.warn("[UPLOAD] No file selected");
-      return;
+    const raw = input?.files ? input.files[0] : null;
+    if (!raw) return;
+    if (!auth.currentUser) { showNotification('Please sign in first.', 'error'); return; }
+
+    // Storage rules allow only images < 20MB
+    const allowed = ['image/jpeg','image/png','image/webp','image/heic','image/heif'];
+    if (!allowed.includes(raw.type)) { showNotification('Only jpg, png, webp, heic/heif images are allowed.', 'error'); return; }
+    if (raw.size > 20 * 1024 * 1024) { showNotification('Image too large. Max 20MB.', 'error'); return; }
+
+    // Compress to WebP (<=1280px, q=0.7) to cut storage & egress cost
+    async function compressImage(file, {maxSize=1280, quality=0.7}={}) {
+    const dataUrl = await new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = () => res(r.result);
+        r.onerror = rej;
+        r.readAsDataURL(file);
+    });
+    
+    const img = await new Promise((res, rej) => {
+        const i = new Image();
+        i.onload = () => res(i);
+        i.onerror = rej;
+        i.src = dataUrl;
+    });
+    
+    let {width, height} = img;
+    // Scale down proportionally
+    if (width > maxSize || height > maxSize) {
+        const scale = maxSize / Math.max(width, height);
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
     }
-    if (!auth.currentUser) {
-      console.warn("[UPLOAD] no auth user");
-      return;
-    }
-
-    // basic validation
-    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif'];
-    if (!allowed.includes(file.type)) {
-      showNotification('Only image files are allowed (jpg, png, webp, gif, heic).', 'error');
-      return;
-    }
-    const MAX_MB = 20;
-    if (file.size > MAX_MB * 1024 * 1024) {
-      showNotification(`Image too large. Max ${MAX_MB} MB.`, 'error');
-      return;
-    }
-
-    console.log("[UPLOAD] authed?", !!auth.currentUser, "uid:", auth.currentUser?.uid);
-    const userId = auth.currentUser.uid;
-
-    // Build a safe file name and full path
-    const original = file.name || 'photo';
-    const safeBase = original.replace(/[^\w.\-]+/g, '_').toLowerCase();
-    const fileName = `${Date.now()}_${safeBase}`;
-    const filePath = `users/${userId}/progress/${fileName}`;
-    console.log("[UPLOAD] type:", file.type, "size:", file.size, "path:", filePath);
-
-    const fileRef = ref(storage, filePath);
-
-    // IMPORTANT: include metadata so Storage rules that check contentType pass
-    const metadata = {
-      contentType: file.type,
-      cacheControl: 'public,max-age=3600'
+    
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, width, height);
+    
+    const blob = await new Promise((res) => 
+        canvas.toBlob(res, 'image/webp', quality)
+    );
+    
+    if (!blob) throw new Error('Compression failed');
+    
+    return {
+        file: new File([blob], file.name.replace(/\.\w+$/, '.webp'), {type: 'image/webp'}),
+        width,
+        height
     };
+    }
 
-    // Upload and then get a download URL
-    const snapshot = await uploadBytes(fileRef, file, metadata);
-    console.log("[UPLOAD] success:", filePath);
-    const url = await getDownloadURL(snapshot.ref);
+    const { file: compressed, width, height } = await compressImage(raw, {maxSize:1280, quality:0.7});
 
-// Optimistic preview while Firestore write completes
-    {
+    const uid = auth.currentUser.uid;
+    const ts = Date.now();
+    const path = `users/${uid}/progress/${ts}_webp.webp`;
+    const fileRef = ref(storage, path);
+
+    // Upload compressed WebP; long cache so repeats don’t re-egress
+    const snapshot = await uploadBytes(fileRef, compressed, { contentType: 'image/webp', cacheControl: 'public,max-age=31536000,immutable' });
+    const downloadURL = await getDownloadURL(snapshot.ref);
+
+    // Optimistic preview
     const container = document.getElementById('progress-photos');
     if (container) {
-        const img = document.createElement('img');
-        img.src = url;
-        img.alt = file.name || 'Progress photo';
-        img.className = 'progress-photo';
-        container.prepend(img);
+      const imgEl = document.createElement('img');
+      imgEl.src = downloadURL;
+      imgEl.alt = 'Progress photo';
+      imgEl.className = 'progress-photo';
+      container.prepend(imgEl);
     }
-    }
-    // Save metadata to Firestore
-    const photosRef = collection(db, `users/${userId}/progressPhotos`);
-    await addDoc(photosRef, {
-      name: original,
-      path: filePath,
-      url,
-      createdAt: Timestamp.now()
-    });
 
-    // Enforce max 20 photos (keeps the most recent 20)
-    const qSnap = await getDocs(query(photosRef, orderBy("createdAt", "desc")));
+    // Firestore doc: match strict rules (immutable allowed fields)
+    const photosRef = collection(db, `users/${uid}/progressPhotos`);
+    await addDoc(photosRef, { userId: uid, path, downloadURL, sizeKb: Math.round(compressed.size/1024), width, height, createdAt: serverTimestamp() });
+
+    // Keep newest 20
+    // Enforce 20 photo limit
+    const qSnap = await getDocs(query(photosRef, orderBy('createdAt', 'desc')));
     if (qSnap.size > 20) {
-      const excess = qSnap.docs.slice(20);
-      for (const d of excess) {
-        try { await deleteDoc(d.ref); } catch (_) {}
-      }
+    const excess = qSnap.docs.slice(20);
+    for (const d of excess) {
+        try {
+        const data = d.data();
+        // Delete from storage first
+        if (data.path) {
+            try {
+            const oldRef = ref(storage, data.path);
+            await deleteObject(oldRef);
+            } catch (e) {
+            console.warn('Failed to delete old photo from storage:', e);
+            }
+        }
+        // Then delete from Firestore
+        await deleteDoc(d.ref);
+        } catch(e) {
+        console.warn('Failed to delete excess photo:', e);
+        }
+    }
     }
 
-    // Refresh UI
     await loadProgressPhotos();
-    showNotification('Photo uploaded successfully!', 'success');
+    showNotification('Photo uploaded ✅', 'success');
   } catch (err) {
-    console.warn("[UPLOAD] storage error:", err?.code, err?.message);
-    showNotification('Upload failed. Check your connection and try again.', 'error');
+    console.warn('[UPLOAD] storage error:', err?.code, err?.message);
+    showNotification('Upload failed. Try again.', 'error');
   }
 };
 
@@ -1803,12 +1834,9 @@ async function loadProgressPhotos() {
     for (const d of qSnap.docs) {
     const data = d.data() || {};
     // NOTE: getDownloadURL() will fail with "storage/unauthorized" if Storage rules reject reads or App Check enforcement is ON without a valid token.
-    let url = await resolveStorageURL(data.url || data.path);
-
-    // Backfill the doc with the resolved URL for faster next loads
-    if (url && url !== data.url) {
-      try { await updateDoc(d.ref, { url }); } catch (_) {}
-    }
+    // Prefer stored downloadURL; fall back to resolving the Storage path
+    let url = data.downloadURL || await resolveStorageURL(data.path || data.url);
+    // NOTE: do not write back derived URLs; photo docs are immutable per rules
 
     // Only render if we have a valid HTTPS URL. Never fall back to a raw Storage path.
     if (!url || !/^https?:\/\//i.test(url)) {
