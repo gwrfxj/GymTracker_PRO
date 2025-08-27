@@ -2942,6 +2942,30 @@ html, body { max-width: 100%; overflow-x: hidden; }
   cursor: pointer; 
 }
 
+/* Body Measurements Section */
+.measurements-section {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: var(--radius-lg);
+    padding: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.measurements-section h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 15px;
+    color: var(--gold);
+    font-size: 18px;
+}
+
+.measurements-history h4 {
+    color: var(--gold);
+    font-size: 16px;
+    margin-bottom: 12px;
+    font-weight: 600;
+}
+
 /* Fix for mobile measurement inputs overflow */
 .measurements-section {
     width: 100%;
