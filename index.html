@@ -652,7 +652,7 @@
         </div>
       </div>
 
-      <!-- Calorie Section (Placeholder) -->
+<!-- Calorie Section -->
       <div id="calorie-section" class="calorie-section" style="display: none;">
         <div class="section-header">
           <button class="back-btn" onclick="backToMainSelection()">
@@ -661,13 +661,292 @@
           </button>
           <h1>Calorie Tracker</h1>
         </div>
-        <div class="coming-soon">
-          <i class="fas fa-utensils"></i>
-          <h2>Coming Soon!</h2>
-          <p>The calorie tracking feature is under development. Check back later!</p>
+
+        <!-- Calorie Tabs -->
+        <div class="calorie-tabs">
+          <button class="calorie-tab active" onclick="switchCalorieTab('dashboard')" data-tab="dashboard">
+            <i class="fas fa-tachometer-alt"></i>
+            <span>Dashboard</span>
+          </button>
+          <button class="calorie-tab" onclick="switchCalorieTab('food')" data-tab="food">
+            <i class="fas fa-utensils"></i>
+            <span>Add Food</span>
+          </button>
+          <button class="calorie-tab" onclick="switchCalorieTab('catalog')" data-tab="catalog">
+            <i class="fas fa-bookmark"></i>
+            <span>My Foods</span>
+          </button>
+          <button class="calorie-tab" onclick="switchCalorieTab('history')" data-tab="history">
+            <i class="fas fa-history"></i>
+            <span>History</span>
+          </button>
+          <button class="calorie-tab" onclick="switchCalorieTab('goals')" data-tab="goals">
+            <i class="fas fa-bullseye"></i>
+            <span>Goals</span>
+          </button>
+        </div>
+
+        <div class="calorie-content">
+          <!-- Dashboard Tab -->
+          <div id="calorie-dashboard-tab" class="calorie-tab-content active">
+            <div class="calorie-dashboard">
+              <!-- Today's Summary -->
+              <div class="today-summary">
+                <h2>Today's Overview - <span id="today-date"></span></h2>
+                <div class="calorie-summary-cards">
+                  <div class="summary-card">
+                    <div class="summary-icon"><i class="fas fa-fire"></i></div>
+                    <div class="summary-info">
+                      <div class="summary-value" id="calories-consumed">0</div>
+                      <div class="summary-label">Calories</div>
+                      <div class="summary-goal">Goal: <span id="calorie-goal-display">2000</span></div>
+                    </div>
+                    <div class="summary-progress">
+                      <div class="progress-bar">
+                        <div class="progress-fill calories-fill" id="calories-progress"></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="summary-card">
+                    <div class="summary-icon protein"><i class="fas fa-drumstick-bite"></i></div>
+                    <div class="summary-info">
+                      <div class="summary-value" id="protein-consumed">0g</div>
+                      <div class="summary-label">Protein</div>
+                      <div class="summary-goal">Goal: <span id="protein-goal-display">50g</span></div>
+                    </div>
+                    <div class="summary-progress">
+                      <div class="progress-bar">
+                        <div class="progress-fill protein-fill" id="protein-progress"></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="summary-card">
+                    <div class="summary-icon carbs"><i class="fas fa-bread-slice"></i></div>
+                    <div class="summary-info">
+                      <div class="summary-value" id="carbs-consumed">0g</div>
+                      <div class="summary-label">Carbs</div>
+                      <div class="summary-goal">Goal: <span id="carbs-goal-display">250g</span></div>
+                    </div>
+                    <div class="summary-progress">
+                      <div class="progress-bar">
+                        <div class="progress-fill carbs-fill" id="carbs-progress"></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="summary-card">
+                    <div class="summary-icon fats"><i class="fas fa-cheese"></i></div>
+                    <div class="summary-info">
+                      <div class="summary-value" id="fats-consumed">0g</div>
+                      <div class="summary-label">Fats</div>
+                      <div class="summary-goal">Goal: <span id="fats-goal-display">65g</span></div>
+                    </div>
+                    <div class="summary-progress">
+                      <div class="progress-bar">
+                        <div class="progress-fill fats-fill" id="fats-progress"></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="summary-card">
+                    <div class="summary-icon sugar"><i class="fas fa-candy-cane"></i></div>
+                    <div class="summary-info">
+                      <div class="summary-value" id="sugar-consumed">0g</div>
+                      <div class="summary-label">Sugar</div>
+                      <div class="summary-goal">Goal: <span id="sugar-goal-display">50g</span></div>
+                    </div>
+                    <div class="summary-progress">
+                      <div class="progress-bar">
+                        <div class="progress-fill sugar-fill" id="sugar-progress"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Today's Meals -->
+              <div class="todays-meals">
+                <h3><i class="fas fa-list"></i> Today's Meals</h3>
+                <div id="today-meals-list" class="meals-list"></div>
+              </div>
+
+              <!-- Weight Tracking (linked with workout section) -->
+              <div class="dashboard-weight-section">
+                <h3><i class="fas fa-weight"></i> Weight Tracking</h3>
+                <div class="weight-quick-add">
+                  <input type="number" id="dashboard-weight-input" placeholder="Enter weight (lbs)" />
+                  <button class="save-weight-btn" onclick="saveDashboardWeight()">
+                    <i class="fas fa-save"></i>
+                    <span>Log Weight</span>
+                  </button>
+                </div>
+                <canvas id="dashboard-weight-chart" height="200"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Add Food Tab -->
+          <div id="calorie-food-tab" class="calorie-tab-content">
+            <div class="add-food-container">
+              <h2>Add Food Entry</h2>
+              
+              <div class="food-entry-form">
+                <!-- Food Photo Section -->
+                <div class="food-photo-section">
+                  <label><i class="fas fa-camera"></i> Food Photo (Optional)</label>
+                  <div class="food-photo-preview" id="food-photo-preview">
+                    <span>Click to add photo</span>
+                  </div>
+                  <input type="file" id="food-photo-input" accept="image/*" style="display: none;" />
+                </div>
+
+                <!-- Food Details -->
+                <div class="food-details-section">
+                  <div class="food-input-group">
+                    <label>Food Name *</label>
+                    <input type="text" id="food-name" placeholder="e.g., Grilled Chicken Breast" />
+                  </div>
+
+                  <div class="food-input-group">
+                    <label>Description</label>
+                    <textarea id="food-description" placeholder="Add notes about this meal..." rows="3"></textarea>
+                  </div>
+
+                  <div class="food-input-group">
+                    <label>Meal Type</label>
+                    <select id="meal-type">
+                      <option value="breakfast">Breakfast</option>
+                      <option value="lunch">Lunch</option>
+                      <option value="dinner">Dinner</option>
+                      <option value="snack">Snack</option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Nutrition Info -->
+                <div class="nutrition-section">
+                  <h3>Nutritional Information</h3>
+                  <div class="nutrition-grid">
+                    <div class="nutrition-input">
+                      <label>Calories *</label>
+                      <input type="number" id="food-calories" placeholder="0" min="0" />
+                    </div>
+                    <div class="nutrition-input">
+                      <label>Protein (g)</label>
+                      <input type="number" id="food-protein" placeholder="0" min="0" step="0.1" />
+                    </div>
+                    <div class="nutrition-input">
+                      <label>Carbs (g)</label>
+                      <input type="number" id="food-carbs" placeholder="0" min="0" step="0.1" />
+                    </div>
+                    <div class="nutrition-input">
+                      <label>Fats (g)</label>
+                      <input type="number" id="food-fats" placeholder="0" min="0" step="0.1" />
+                    </div>
+                    <div class="nutrition-input">
+                      <label>Sugar (g)</label>
+                      <input type="number" id="food-sugar" placeholder="0" min="0" step="0.1" />
+                    </div>
+                    <div class="nutrition-input">
+                      <label>Fiber (g)</label>
+                      <input type="number" id="food-fiber" placeholder="0" min="0" step="0.1" />
+                    </div>
+                    <div class="nutrition-input">
+                      <label>Sodium (mg)</label>
+                      <input type="number" id="food-sodium" placeholder="0" min="0" />
+                    </div>
+                    <div class="nutrition-input">
+                      <label>Serving Size</label>
+                      <input type="text" id="food-serving" placeholder="e.g., 1 cup" />
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="food-actions">
+                  <label class="save-to-catalog">
+                    <input type="checkbox" id="save-to-catalog" />
+                    <span>Save to My Foods catalog</span>
+                  </label>
+                  <button class="add-food-btn" onclick="saveFood()">
+                    <i class="fas fa-plus"></i>
+                    <span>Add Food</span>
+                  </button>
+                  <button class="clear-form-btn" onclick="clearFoodForm()">
+                    <i class="fas fa-eraser"></i>
+                    <span>Clear Form</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- My Foods Catalog Tab -->
+          <div id="calorie-catalog-tab" class="calorie-tab-content">
+            <div class="catalog-container">
+              <h2>My Saved Foods</h2>
+              <div class="catalog-search">
+                <input type="text" id="catalog-search" placeholder="Search saved foods..." />
+                <i class="fas fa-search"></i>
+              </div>
+              <div id="food-catalog-list" class="food-catalog-list"></div>
+            </div>
+          </div>
+
+          <!-- History Tab -->
+          <div id="calorie-history-tab" class="calorie-tab-content">
+            <div class="history-container">
+              <h2>Food History</h2>
+              <div class="history-navigation">
+                <button onclick="changeHistoryDate(-1)" class="history-nav-btn">
+                  <i class="fas fa-chevron-left"></i>
+                </button>
+                <span id="history-date" class="history-current-date"></span>
+                <button onclick="changeHistoryDate(1)" class="history-nav-btn">
+                  <i class="fas fa-chevron-right"></i>
+                </button>
+              </div>
+              <div id="history-meals-list" class="history-meals-list"></div>
+              <div class="history-summary" id="history-summary"></div>
+            </div>
+          </div>
+
+          <!-- Goals Tab -->
+          <div id="calorie-goals-tab" class="calorie-tab-content">
+            <div class="goals-container">
+              <h2>Nutrition Goals</h2>
+              <div class="goals-form">
+                <div class="goal-input-group">
+                  <label><i class="fas fa-fire"></i> Daily Calorie Goal</label>
+                  <input type="number" id="goal-calories" placeholder="2000" min="0" />
+                </div>
+                <div class="goal-input-group">
+                  <label><i class="fas fa-drumstick-bite"></i> Protein Goal (g)</label>
+                  <input type="number" id="goal-protein" placeholder="50" min="0" />
+                </div>
+                <div class="goal-input-group">
+                  <label><i class="fas fa-bread-slice"></i> Carbs Goal (g)</label>
+                  <input type="number" id="goal-carbs" placeholder="250" min="0" />
+                </div>
+                <div class="goal-input-group">
+                  <label><i class="fas fa-cheese"></i> Fats Goal (g)</label>
+                  <input type="number" id="goal-fats" placeholder="65" min="0" />
+                </div>
+                <div class="goal-input-group">
+                  <label><i class="fas fa-candy-cane"></i> Sugar Goal (g)</label>
+                  <input type="number" id="goal-sugar" placeholder="50" min="0" />
+                </div>
+                <button class="save-goals-btn" onclick="saveNutritionGoals()">
+                  <i class="fas fa-save"></i>
+                  <span>Save Goals</span>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
 
     <!-- Exercise Modal -->
     <div id="exercise-modal" class="modal" style="display: none;">
