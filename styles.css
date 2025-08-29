@@ -3194,6 +3194,13 @@ html, body { max-width: 100%; overflow-x: hidden; }
     margin-top: 5px;
 }
 
+/* Display the remaining amount (goal minus consumed) below each goal */
+.summary-remaining {
+  font-size: 13px;
+  color: var(--light-blue); /* you can pick any accent color */
+  margin-top: 2px;
+}
+
 .summary-progress {
     margin-top: 10px;
 }
