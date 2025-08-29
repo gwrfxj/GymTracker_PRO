@@ -2244,66 +2244,80 @@ window.switchCalorieTab = (tabName) => {
 };
 
 // Load Calorie Dashboard
+// Load Calorie Dashboard
 async function loadCalorieDashboard() {
-    if (!currentUser) return;
-    
-    try {
-        // Set today's date
-        const today = new Date();
-        document.getElementById('today-date').textContent = today.toLocaleDateString('en-US', {
-            weekday: 'long',
-            month: 'long',
-            day: 'numeric'
-        });
+  if (!currentUser) return;
 
-        // Load today's food entries
-        await loadTodaysFoodEntries();
+  try {
+    // Set today's date
+    const today = new Date();
+    document.getElementById('today-date').textContent = today.toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric'
+    });
 
-        // Load nutrition goals
-        const userDoc  = await getDoc(doc(db, 'users', currentUser.uid));
-        const userData = userDoc.exists() ? userDoc.data() : {};
-        const goals    = userData.nutritionGoals || {
-            calories: 2000,
-            protein: 50,
-            carbs: 250,
-            fats: 65,
-            sugar: 50
-        };
+    // Load today's food entries
+    await loadTodaysFoodEntries();
 
-        // Update goal displays
-        document.getElementById('calorie-goal-display').textContent = goals.calories;
-        document.getElementById('protein-goal-display').textContent = goals.protein + 'g';
-        document.getElementById('carbs-goal-display').textContent   = goals.carbs + 'g';
-        document.getElementById('fats-goal-display').textContent    = goals.fats + 'g';
-        document.getElementById('sugar-goal-display').textContent   = goals.sugar + 'g';
+    // Load nutrition goals (with defaults if not set)
+    const userDoc  = await getDoc(doc(db, 'users', currentUser.uid));
+    const userData = userDoc.exists() ? userDoc.data() : {};
+    const goals    = userData.nutritionGoals || {
+      calories: 2000,
+      protein: 50,
+      carbs: 250,
+      fats: 65,
+      sugar: 50
+    };
 
-        // Calculate totals from today's entries
-        const totals = calculateDailyTotals(todaysFoodEntries);
+    // Update goal displays
+    document.getElementById('calorie-goal-display').textContent = goals.calories;
+    document.getElementById('protein-goal-display').textContent = goals.protein + 'g';
+    document.getElementById('carbs-goal-display').textContent   = goals.carbs + 'g';
+    document.getElementById('fats-goal-display').textContent    = goals.fats + 'g';
+    document.getElementById('sugar-goal-display').textContent   = goals.sugar + 'g';
 
-        // Update consumed displays
-        document.getElementById('calories-consumed').textContent = totals.calories;
-        document.getElementById('protein-consumed').textContent  = totals.protein + 'g';
-        document.getElementById('carbs-consumed').textContent    = totals.carbs + 'g';
-        document.getElementById('fats-consumed').textContent     = totals.fats + 'g';
-        document.getElementById('sugar-consumed').textContent    = totals.sugar + 'g';
+    // Calculate totals from today's entries
+    const totals = calculateDailyTotals(todaysFoodEntries);
 
-        // Update progress bars
-        updateProgressBar('calories', totals.calories, goals.calories);
-        updateProgressBar('protein',  totals.protein,  goals.protein);
-        updateProgressBar('carbs',    totals.carbs,    goals.carbs);
-        updateProgressBar('fats',     totals.fats,     goals.fats);
-        updateProgressBar('sugar',    totals.sugar,    goals.sugar);
+    // Update consumed displays
+    document.getElementById('calories-consumed').textContent = totals.calories;
+    document.getElementById('protein-consumed').textContent  = totals.protein + 'g';
+    document.getElementById('carbs-consumed').textContent    = totals.carbs + 'g';
+    document.getElementById('fats-consumed').textContent     = totals.fats + 'g';
+    document.getElementById('sugar-consumed').textContent    = totals.sugar + 'g';
 
-        // NEW: update the Calories card on the main dashboard
-        updateCalorieCardStats(goals, totals);
+    // Update progress bars
+    updateProgressBar('calories', totals.calories, goals.calories);
+    updateProgressBar('protein',  totals.protein,  goals.protein);
+    updateProgressBar('carbs',    totals.carbs,    goals.carbs);
+    updateProgressBar('fats',     totals.fats,     goals.fats);
+    updateProgressBar('sugar',    totals.sugar,    goals.sugar);
 
-        // Load weight chart and history for the calorie dashboard
-        await loadDashboardWeightChart();
-        await loadCalorieWeightHistory();
+    // Compute and display remaining values (clamp at 0 if over)
+    const calRemain   = Math.max(goals.calories - totals.calories, 0);
+    const protRemain  = Math.max(goals.protein  - totals.protein,  0);
+    const carbRemain  = Math.max(goals.carbs    - totals.carbs,    0);
+    const fatsRemain  = Math.max(goals.fats     - totals.fats,     0);
+    const sugarRemain = Math.max(goals.sugar    - totals.sugar,    0);
 
-    } catch (error) {
-        console.error('Error loading calorie dashboard:', error);
-    }
+    document.getElementById('calorie-remaining-display').textContent   = calRemain;
+    document.getElementById('protein-remaining-display').textContent  = protRemain + 'g';
+    document.getElementById('carbs-remaining-display').textContent    = carbRemain + 'g';
+    document.getElementById('fats-remaining-display').textContent     = fatsRemain + 'g';
+    document.getElementById('sugar-remaining-display').textContent    = sugarRemain + 'g';
+
+    // Update the Calories card on the main selection screen
+    updateCalorieCardStats(goals, totals);
+
+    // Load the weight chart and history
+    await loadDashboardWeightChart();
+    await loadCalorieWeightHistory();
+
+  } catch (error) {
+    console.error('Error loading calorie dashboard:', error);
+  }
 }
 
 // Display today's meals
