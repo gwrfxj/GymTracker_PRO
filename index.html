@@ -691,81 +691,113 @@
           <!-- Dashboard Tab -->
           <div id="calorie-dashboard-tab" class="calorie-tab-content active">
             <div class="calorie-dashboard">
-              <!-- Today's Summary -->
-              <div class="today-summary">
-                <h2>Today's Overview - <span id="today-date"></span></h2>
-                <div class="calorie-summary-cards">
-                  <div class="summary-card">
-                    <div class="summary-icon"><i class="fas fa-fire"></i></div>
-                    <div class="summary-info">
-                      <div class="summary-value" id="calories-consumed">0</div>
-                      <div class="summary-label">Calories</div>
-                      <div class="summary-goal">Goal: <span id="calorie-goal-display">2000</span></div>
+            <!-- Today's Summary -->
+            <div class="today-summary">
+              <h2>Today's Overview - <span id="today-date"></span></h2>
+              <div class="calorie-summary-cards">
+
+                <!-- Calories card -->
+                <div class="summary-card">
+                  <div class="summary-icon"><i class="fas fa-fire"></i></div>
+                  <div class="summary-info">
+                    <div class="summary-value" id="calories-consumed">0</div>
+                    <div class="summary-label">Calories</div>
+                    <div class="summary-goal">
+                      Goal: <span id="calorie-goal-display">2000</span>
                     </div>
-                    <div class="summary-progress">
-                      <div class="progress-bar">
-                        <div class="progress-fill calories-fill" id="calories-progress"></div>
-                      </div>
+                    <div class="summary-remaining">
+                      Left: <span id="calorie-remaining-display">0</span>
                     </div>
                   </div>
-
-                  <div class="summary-card">
-                    <div class="summary-icon protein"><i class="fas fa-drumstick-bite"></i></div>
-                    <div class="summary-info">
-                      <div class="summary-value" id="protein-consumed">0g</div>
-                      <div class="summary-label">Protein</div>
-                      <div class="summary-goal">Goal: <span id="protein-goal-display">50g</span></div>
-                    </div>
-                    <div class="summary-progress">
-                      <div class="progress-bar">
-                        <div class="progress-fill protein-fill" id="protein-progress"></div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="summary-card">
-                    <div class="summary-icon carbs"><i class="fas fa-bread-slice"></i></div>
-                    <div class="summary-info">
-                      <div class="summary-value" id="carbs-consumed">0g</div>
-                      <div class="summary-label">Carbs</div>
-                      <div class="summary-goal">Goal: <span id="carbs-goal-display">250g</span></div>
-                    </div>
-                    <div class="summary-progress">
-                      <div class="progress-bar">
-                        <div class="progress-fill carbs-fill" id="carbs-progress"></div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="summary-card">
-                    <div class="summary-icon fats"><i class="fas fa-cheese"></i></div>
-                    <div class="summary-info">
-                      <div class="summary-value" id="fats-consumed">0g</div>
-                      <div class="summary-label">Fats</div>
-                      <div class="summary-goal">Goal: <span id="fats-goal-display">65g</span></div>
-                    </div>
-                    <div class="summary-progress">
-                      <div class="progress-bar">
-                        <div class="progress-fill fats-fill" id="fats-progress"></div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="summary-card">
-                    <div class="summary-icon sugar"><i class="fas fa-candy-cane"></i></div>
-                    <div class="summary-info">
-                      <div class="summary-value" id="sugar-consumed">0g</div>
-                      <div class="summary-label">Sugar</div>
-                      <div class="summary-goal">Goal: <span id="sugar-goal-display">50g</span></div>
-                    </div>
-                    <div class="summary-progress">
-                      <div class="progress-bar">
-                        <div class="progress-fill sugar-fill" id="sugar-progress"></div>
-                      </div>
+                  <div class="summary-progress">
+                    <div class="progress-bar">
+                      <div class="progress-fill calories-fill" id="calories-progress"></div>
                     </div>
                   </div>
                 </div>
-              </div>
+
+                <!-- Protein card -->
+                <div class="summary-card">
+                  <div class="summary-icon protein"><i class="fas fa-drumstick-bite"></i></div>
+                  <div class="summary-info">
+                    <div class="summary-value" id="protein-consumed">0g</div>
+                    <div class="summary-label">Protein</div>
+                    <div class="summary-goal">
+                      Goal: <span id="protein-goal-display">50g</span>
+                    </div>
+                    <div class="summary-remaining">
+                      Left: <span id="protein-remaining-display">0g</span>
+                    </div>
+                  </div>
+                  <div class="summary-progress">
+                    <div class="progress-bar">
+                      <div class="progress-fill protein-fill" id="protein-progress"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Carbs card -->
+                <div class="summary-card">
+                  <div class="summary-icon carbs"><i class="fas fa-bread-slice"></i></div>
+                  <div class="summary-info">
+                    <div class="summary-value" id="carbs-consumed">0g</div>
+                    <div class="summary-label">Carbs</div>
+                    <div class="summary-goal">
+                      Goal: <span id="carbs-goal-display">250g</span>
+                    </div>
+                    <div class="summary-remaining">
+                      Left: <span id="carbs-remaining-display">0g</span>
+                    </div>
+                  </div>
+                  <div class="summary-progress">
+                    <div class="progress-bar">
+                      <div class="progress-fill carbs-fill" id="carbs-progress"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Fats card -->
+                <div class="summary-card">
+                  <div class="summary-icon fats"><i class="fas fa-cheese"></i></div>
+                  <div class="summary-info">
+                    <div class="summary-value" id="fats-consumed">0g</div>
+                    <div class="summary-label">Fats</div>
+                    <div class="summary-goal">
+                      Goal: <span id="fats-goal-display">65g</span>
+                    </div>
+                    <div class="summary-remaining">
+                      Left: <span id="fats-remaining-display">0g</span>
+                    </div>
+                  </div>
+                  <div class="summary-progress">
+                    <div class="progress-bar">
+                      <div class="progress-fill fats-fill" id="fats-progress"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Sugar card -->
+                <div class="summary-card">
+                  <div class="summary-icon sugar"><i class="fas fa-candy-cane"></i></div>
+                  <div class="summary-info">
+                    <div class="summary-value" id="sugar-consumed">0g</div>
+                    <div class="summary-label">Sugar</div>
+                    <div class="summary-goal">
+                      Goal: <span id="sugar-goal-display">50g</span>
+                    </div>
+                    <div class="summary-remaining">
+                      Left: <span id="sugar-remaining-display">0g</span>
+                    </div>
+                  </div>
+                  <div class="summary-progress">
+                    <div class="progress-bar">
+                      <div class="progress-fill sugar-fill" id="sugar-progress"></div>
+                    </div>
+                  </div>
+                </div>
+
+              </div> <!-- end calorie-summary-cards -->
+            </div> <!-- end today-summary -->
 
               <!-- Today's Meals -->
               <div class="todays-meals">
