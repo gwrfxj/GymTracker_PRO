@@ -3894,12 +3894,30 @@ html, body { max-width: 100%; overflow-x: hidden; }
     }
 }
 
-/* Weight History Section */
+/* Weight History Section styles. */
 .weight-history-section {
     margin-top: 20px;
     background: rgba(255, 255, 255, 0.05);
     border-radius: var(--radius-lg);
     padding: 20px;
+    overflow-x: auto; /* allow horizontal scroll if needed */
+}
+
+/* Responsive tweaks for weight-history table */
+@media (max-width: 480px) {
+    .weight-history-section .weight-history-table th,
+    .weight-history-section .weight-history-table td {
+        font-size: 12px;
+        padding: 6px 4px;
+        white-space: nowrap; /* keep content on one line */
+    }
+    .weight-history-section .weight-actions {
+        gap: 4px;
+    }
+    .weight-history-section .weight-actions button {
+        padding: 3px 4px;
+        font-size: 12px;
+    }
 }
 
 /* Style the heading within the weight history section */
