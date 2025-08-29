@@ -107,6 +107,12 @@ let currentWorkout = null;
 let exerciseLibrary = [];
 let userRoutines = [];
 let muscleResetTimer = null;
+// Calorie tracking variables
+let currentHistoryDate = new Date();
+let foodCatalog = [];
+let todaysFoodEntries = [];
+let dashboardWeightChart = null;
+let currentFoodPhoto = null; // Stores the current food photo for upload
 
 // Weight chart and range state.  The weightChart instance will hold the
 // Chart.js line chart used in the weight progress section.  The
@@ -2073,14 +2079,16 @@ window.saveWeight = async () => {
 };
 
 // Load weight data and render the chart for the specified range in days.
-async function loadWeightChart(rangeDays = 30) {
+async function loadWeightChart(rangeDays = 90) {
     if (!currentUser) return;
     try {
-        currentWeightRange = rangeDays;
+        let startDate = null;
+        if (rangeDays) {
+            startDate = new Date();
+            startDate.setDate(startDate.getDate() - rangeDays);
+        }
+
         const measurementsRef = collection(db, 'users', currentUser.uid, 'measurements');
-        const now = new Date();
-        const startDate = new Date(now.getTime() - rangeDays * 24 * 60 * 60 * 1000);
-        // Query for measurements with date >= startDate, ordered by date ascending
         let q; 
         if (startDate) {
             q = query(measurementsRef, where('date', '>=', Timestamp.fromDate(startDate)), orderBy('date', 'asc'));
@@ -2088,7 +2096,8 @@ async function loadWeightChart(rangeDays = 30) {
             q = query(measurementsRef, orderBy('date', 'asc'));
         }
         const snap = await getDocs(q);
-        // Aggregate weights by date, taking the maximum weight for each day
+
+        // Aggregate weights by date (keep max per day)
         const weightMap = {};
         snap.forEach(docSnap => {
             const d = docSnap.data();
@@ -2103,18 +2112,14 @@ async function loadWeightChart(rangeDays = 30) {
                 }
             }
         });
-        // Prepare sorted labels and corresponding data values
-        const labels = Object.keys(weightMap).sort((a, b) => {
-            // Convert locale date strings back to Date objects for sorting
-            const da = new Date(a);
-            const db = new Date(b);
-            return da - db;
-        });
+
+        const labels = Object.keys(weightMap).sort((a, b) => new Date(a) - new Date(b));
         const data = labels.map(l => weightMap[l]);
-        // If no data points, clear chart and exit
+
         const canvas = document.getElementById('weight-chart');
         if (!canvas) return;
-        if (labels.length === 0) {
+
+        if (data.length === 0) {
             if (weightChart) {
                 weightChart.destroy();
                 weightChart = null;
@@ -2123,13 +2128,13 @@ async function loadWeightChart(rangeDays = 30) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             return;
         }
-        // Destroy previous chart instance if exists
+
+        // Destroy any existing chart
         if (weightChart) weightChart.destroy();
         const ctx = canvas.getContext('2d');
-        // Chart may be attached to the window object when loaded via
-        // external script.  Access it via window.Chart to avoid
-        // undefined references inside ESM modules.
         const ChartClass = window.Chart || Chart;
+
+        // Create the chart with the same styling as the calorie dashboard graph
         weightChart = new ChartClass(ctx, {
             type: 'line',
             data: {
@@ -2137,8 +2142,9 @@ async function loadWeightChart(rangeDays = 30) {
                 datasets: [{
                     label: 'Weight (lbs)',
                     data: data,
-                    borderColor: '#d81b60',
-                    backgroundColor: 'rgba(216,27,96,0.2)',
+                    borderColor: '#10B981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    borderWidth: 2,
                     tension: 0.3,
                     fill: true,
                     pointRadius: 4,
@@ -2148,6 +2154,11 @@ async function loadWeightChart(rangeDays = 30) {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
                 scales: {
                     x: {
                         title: {
@@ -2170,17 +2181,11 @@ async function loadWeightChart(rangeDays = 30) {
                         },
                         beginAtZero: true
                     }
-                },
-                plugins: {
-                    legend: {
-                        labels: {
-                            color: '#fff'
-                        }
-                    }
                 }
             }
         });
-        // Highlight the active range button
+
+        // Highlight the selected range button
         document.querySelectorAll('.weight-range-btn').forEach(btn => {
             btn.classList.remove('active');
             const days = parseInt(btn.getAttribute('data-range'));
@@ -2197,6 +2202,1133 @@ async function loadWeightChart(rangeDays = 30) {
 window.updateWeightChartRange = async (days) => {
     await loadWeightChart(days);
 };
+
+// ===============================================
+// CALORIE TRACKER FUNCTIONS
+// ===============================================
+
+// Tab Management for Calorie Section
+window.switchCalorieTab = (tabName) => {
+    // Update the tab buttons to highlight the active one
+    document.querySelectorAll('.calorie-tab').forEach(tab => {
+        tab.classList.remove('active');
+        if (tab.dataset.tab === tabName) {
+            tab.classList.add('active');
+        }
+    });
+
+    // Hide all tab contents
+    document.querySelectorAll('.calorie-tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+
+    // Show the selected tab’s content
+    document.getElementById(`calorie-${tabName}-tab`).classList.add('active');
+
+    // Load data for the selected tab
+    if (tabName === 'dashboard') {
+        loadCalorieDashboard();
+    } else if (tabName === 'catalog') {
+        loadFoodCatalog();
+    } else if (tabName === 'history') {
+        loadFoodHistory();
+    } else if (tabName === 'goals') {
+        loadNutritionGoals();
+    }
+
+    // Show weight history only on the dashboard tab
+    const weightHistorySection = document.querySelector('.weight-history-section');
+    if (weightHistorySection) {
+        weightHistorySection.style.display = (tabName === 'dashboard') ? 'block' : 'none';
+    }
+};
+
+// Load Calorie Dashboard
+async function loadCalorieDashboard() {
+    if (!currentUser) return;
+    
+    try {
+        // Set today's date
+        const today = new Date();
+        document.getElementById('today-date').textContent = today.toLocaleDateString('en-US', {
+            weekday: 'long',
+            month: 'long',
+            day: 'numeric'
+        });
+        
+        // Load today's food entries
+        await loadTodaysFoodEntries();
+        
+        // Load nutrition goals
+        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+        const userData = userDoc.exists() ? userDoc.data() : {};
+        const goals = userData.nutritionGoals || {
+            calories: 2000,
+            protein: 50,
+            carbs: 250,
+            fats: 65,
+            sugar: 50
+        };
+        
+        // Update goal displays
+        document.getElementById('calorie-goal-display').textContent = goals.calories;
+        document.getElementById('protein-goal-display').textContent = goals.protein + 'g';
+        document.getElementById('carbs-goal-display').textContent = goals.carbs + 'g';
+        document.getElementById('fats-goal-display').textContent = goals.fats + 'g';
+        document.getElementById('sugar-goal-display').textContent = goals.sugar + 'g';
+        
+        // Calculate totals from today's entries
+        const totals = calculateDailyTotals(todaysFoodEntries);
+        
+        // Update consumed displays
+        document.getElementById('calories-consumed').textContent = totals.calories;
+        document.getElementById('protein-consumed').textContent = totals.protein + 'g';
+        document.getElementById('carbs-consumed').textContent = totals.carbs + 'g';
+        document.getElementById('fats-consumed').textContent = totals.fats + 'g';
+        document.getElementById('sugar-consumed').textContent = totals.sugar + 'g';
+        
+        // Update progress bars
+        updateProgressBar('calories', totals.calories, goals.calories);
+        updateProgressBar('protein', totals.protein, goals.protein);
+        updateProgressBar('carbs', totals.carbs, goals.carbs);
+        updateProgressBar('fats', totals.fats, goals.fats);
+        updateProgressBar('sugar', totals.sugar, goals.sugar);
+        
+        // Load weight chart and history for the calorie dashboard
+        // First load the aggregated chart that shows only the highest weight
+        // recorded for each day.  Then populate the weight history table
+        // so users can review or edit past entries.
+        await loadDashboardWeightChart();
+        await loadCalorieWeightHistory();
+        
+    } catch (error) {
+        console.error('Error loading calorie dashboard:', error);
+    }
+}
+
+// Display today's meals
+function displayTodaysMeals(entries) {
+    const mealsList = document.getElementById('today-meals-list');
+    if (!mealsList) return;
+    
+    if (entries.length === 0) {
+        mealsList.innerHTML = '<p class="no-meals">No meals logged today. Add your first meal!</p>';
+        return;
+    }
+    
+    // Group by meal type
+    const mealGroups = {
+        breakfast: [],
+        lunch: [],
+        dinner: [],
+        snack: []
+    };
+    
+    entries.forEach(entry => {
+        let mealType = entry.mealType || 'snack';
+        // Ensure mealType is valid, default to 'snack' if not
+        if (!mealGroups.hasOwnProperty(mealType)) {
+            mealType = 'snack';
+        }
+        mealGroups[mealType].push(entry);
+    });
+    
+    mealsList.innerHTML = '';
+    
+    Object.entries(mealGroups).forEach(([mealType, meals]) => {
+        if (meals.length > 0) {
+            const mealSection = document.createElement('div');
+            mealSection.className = 'meal-section';
+            
+            const mealHeader = document.createElement('h4');
+            mealHeader.className = 'meal-type-header';
+            mealHeader.innerHTML = `<i class="fas fa-utensils"></i> ${mealType.charAt(0).toUpperCase() + mealType.slice(1)}`;
+            mealSection.appendChild(mealHeader);
+            
+            meals.forEach(meal => {
+                const mealItem = document.createElement('div');
+                mealItem.className = 'meal-item';
+                mealItem.innerHTML = `
+                    <div class="meal-info">
+                        <div class="meal-name">${meal.name}</div>
+                        <div class="meal-nutrition">
+                            ${meal.calories} cal | ${meal.protein}g protein | ${meal.carbs}g carbs | ${meal.fats}g fat
+                        </div>
+                    </div>
+                    <button class="meal-delete" onclick="deleteFoodEntry('${meal.id}')">
+                        <i class="fas fa-times"></i>
+                    </button>
+                `;
+                mealSection.appendChild(mealItem);
+            });
+            
+            mealsList.appendChild(mealSection);
+        }
+    });
+}
+
+// Calculate daily totals
+function calculateDailyTotals(entries) {
+    return entries.reduce((totals, entry) => {
+        totals.calories += entry.calories || 0;
+        totals.protein += entry.protein || 0;
+        totals.carbs += entry.carbs || 0;
+        totals.fats += entry.fats || 0;
+        totals.sugar += entry.sugar || 0;
+        return totals;
+    }, { calories: 0, protein: 0, carbs: 0, fats: 0, sugar: 0 });
+}
+
+// Update progress bars
+function updateProgressBar(nutrient, consumed, goal) {
+    const progressBar = document.getElementById(`${nutrient}-progress`);
+    if (progressBar) {
+        const percentage = goal > 0 ? Math.min((consumed / goal) * 100, 100) : 0;
+        progressBar.style.width = `${percentage}%`;
+        
+        // Change color based on percentage
+        if (percentage > 100) {
+            progressBar.style.background = 'var(--gradient-fire)';
+        } else if (percentage > 75) {
+            progressBar.style.background = 'var(--gradient-ocean)';
+        }
+    }
+}
+async function loadTodaysFoodEntries() {
+    if (!currentUser) return;
+    
+    try {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        
+        const foodRef = collection(db, 'users', currentUser.uid, 'foodEntries');
+        
+        const q = query(
+            foodRef,
+            where('date', '>=', Timestamp.fromDate(today)),
+            where('date', '<', Timestamp.fromDate(tomorrow))
+        );
+        
+        const snapshot = await getDocs(q);
+        todaysFoodEntries = [];
+        
+        snapshot.forEach(doc => {
+            todaysFoodEntries.push({ id: doc.id, ...doc.data() });
+        });
+        
+        todaysFoodEntries.sort((a, b) => {
+            const dateA = a.date?.toDate ? a.date.toDate() : new Date(0);
+            const dateB = b.date?.toDate ? b.date.toDate() : new Date(0);
+            return dateB - dateA;
+        });
+        
+        displayTodaysMeals(todaysFoodEntries);
+        
+    } catch (error) {
+        console.error('Error loading today\'s food entries:', error);
+        todaysFoodEntries = [];
+        displayTodaysMeals(todaysFoodEntries);
+    }
+}
+
+// Clear food form
+window.clearFoodForm = () => {
+    document.getElementById('food-name').value = '';
+    document.getElementById('food-description').value = '';
+    document.getElementById('meal-type').value = 'breakfast';
+    document.getElementById('food-calories').value = '';
+    document.getElementById('food-protein').value = '';
+    document.getElementById('food-carbs').value = '';
+    document.getElementById('food-fats').value = '';
+    document.getElementById('food-sugar').value = '';
+    document.getElementById('food-fiber').value = '';
+    document.getElementById('food-sodium').value = '';
+    document.getElementById('food-serving').value = '';
+    document.getElementById('save-to-catalog').checked = false;
+    
+    // Clear photo preview
+    currentFoodPhoto = null;
+    const preview = document.getElementById('food-photo-preview');
+    preview.innerHTML = '<span>Click to add photo</span>';
+    preview.style.backgroundImage = '';
+};
+
+
+// Add this function to app.js (around line 2850, after the loadDashboardWeightChart function)
+window.saveFood = async () => {
+    if (!currentUser) {
+        showNotification('Please sign in to save food entries', 'error');
+        return;
+    }
+    
+    const foodName = document.getElementById('food-name').value.trim();
+    const calories = parseFloat(document.getElementById('food-calories').value) || 0;
+    
+    if (!foodName) {
+        showNotification('Please enter a food name', 'error');
+        return;
+    }
+    
+    if (!calories || calories <= 0) {
+        showNotification('Please enter valid calories', 'error');
+        return;
+    }
+    
+    try {
+        const foodEntry = {
+            userId: currentUser.uid,
+            name: foodName,
+            description: document.getElementById('food-description').value || '',
+            mealType: document.getElementById('meal-type').value || 'snack',
+            calories: calories,
+            protein: parseFloat(document.getElementById('food-protein').value) || 0,
+            carbs: parseFloat(document.getElementById('food-carbs').value) || 0,
+            fats: parseFloat(document.getElementById('food-fats').value) || 0,
+            sugar: parseFloat(document.getElementById('food-sugar').value) || 0,
+            fiber: parseFloat(document.getElementById('food-fiber').value) || 0,
+            sodium: parseFloat(document.getElementById('food-sodium').value) || 0,
+            serving: document.getElementById('food-serving').value || '',
+            date: serverTimestamp()
+        };
+        
+        // Save to food entries
+        await addDoc(collection(db, 'users', currentUser.uid, 'foodEntries'), foodEntry);
+        
+        // If "Save to catalog" is checked, also save to catalog
+        if (document.getElementById('save-to-catalog').checked) {
+            const catalogEntry = { ...foodEntry };
+            delete catalogEntry.mealType;
+            delete catalogEntry.date;
+            catalogEntry.isFavorite = false;
+            await addDoc(collection(db, 'users', currentUser.uid, 'foodCatalog'), catalogEntry);
+        }
+        
+        showNotification('Food entry saved!', 'success');
+        clearFoodForm();
+        
+        // Reload dashboard if it's active
+        if (document.getElementById('calorie-dashboard-tab').classList.contains('active')) {
+            loadCalorieDashboard();
+        }
+    } catch (error) {
+        console.error('Error saving food:', error);
+        showNotification('Error saving food entry', 'error');
+    }
+};
+
+
+// Load food catalog
+async function loadFoodCatalog() {
+    if (!currentUser) return;
+    
+    try {
+        const catalogRef = collection(db, 'users', currentUser.uid, 'foodCatalog');
+        const snapshot = await getDocs(catalogRef);
+        
+        foodCatalog = [];
+        snapshot.forEach(doc => {
+            foodCatalog.push({ id: doc.id, ...doc.data() });
+        });
+        
+        displayFoodCatalog(foodCatalog);
+        
+    } catch (error) {
+        console.error('Error loading food catalog:', error);
+    }
+}
+
+// Display food catalog
+function displayFoodCatalog(foods) {
+    const catalogList = document.getElementById('food-catalog-list');
+    if (!catalogList) return;
+    
+    if (foods.length === 0) {
+        catalogList.innerHTML = '<p class="no-foods">No saved foods yet. Save foods when adding entries!</p>';
+        return;
+    }
+    
+    catalogList.innerHTML = '';
+    
+    foods.forEach(food => {
+        const foodCard = document.createElement('div');
+        foodCard.className = 'catalog-food-card';
+        foodCard.innerHTML = `
+            <div class="catalog-food-header">
+                <h4>${food.name}</h4>
+                <button class="favorite-btn ${food.isFavorite ? 'favorited' : ''}" 
+                        onclick="toggleFoodFavorite('${food.id}')">
+                    <i class="fas fa-star"></i>
+                </button>
+            </div>
+            <div class="catalog-food-nutrition">
+                <span>${food.calories} cal</span>
+                <span>${food.protein}g protein</span>
+                <span>${food.carbs}g carbs</span>
+                <span>${food.fats}g fat</span>
+            </div>
+            <div class="catalog-food-actions">
+                <button onclick="quickAddFood('${food.id}')" class="quick-add-btn">
+                    <i class="fas fa-plus"></i> Quick Add
+                </button>
+                <button onclick="deleteCatalogFood('${food.id}')" class="delete-catalog-btn">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `;
+        catalogList.appendChild(foodCard);
+    });
+}
+
+// Toggle food favorite
+window.toggleFoodFavorite = async (foodId) => {
+    try {
+        const foodRef = doc(db, 'users', currentUser.uid, 'foodCatalog', foodId);
+        const foodDoc = await getDoc(foodRef);
+        
+        if (foodDoc.exists()) {
+            const currentFavorite = foodDoc.data().isFavorite || false;
+            await updateDoc(foodRef, { isFavorite: !currentFavorite });
+            loadFoodCatalog();
+        }
+    } catch (error) {
+        console.error('Error toggling favorite:', error);
+    }
+};
+
+window.quickAddFood = async (catalogId) => {
+    try {
+        const catalogRef = doc(db, 'users', currentUser.uid, 'foodCatalog', catalogId);
+        const catalogDoc = await getDoc(catalogRef);
+        
+        if (!catalogDoc.exists()) {
+            showNotification('Food item not found', 'error');
+            return;
+        }
+        
+        const catalogFood = catalogDoc.data();
+        
+        // Create meal type selection modal
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.style.display = 'flex';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 400px;">
+                <div class="modal-header">
+                    <h2>Add ${catalogFood.name}</h2>
+                    <button class="close-modal" onclick="this.closest('.modal').remove()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="meal-type-selection">
+                        <h3>Select Meal Type:</h3>
+                        <div class="meal-type-buttons">
+                            <button class="meal-type-btn" data-meal="breakfast">
+                                <i class="fas fa-sun"></i>
+                                <span>Breakfast</span>
+                            </button>
+                            <button class="meal-type-btn" data-meal="lunch">
+                                <i class="fas fa-cloud-sun"></i>
+                                <span>Lunch</span>
+                            </button>
+                            <button class="meal-type-btn" data-meal="dinner">
+                                <i class="fas fa-moon"></i>
+                                <span>Dinner</span>
+                            </button>
+                            <button class="meal-type-btn" data-meal="snack">
+                                <i class="fas fa-cookie"></i>
+                                <span>Snack</span>
+                            </button>
+                        </div>
+                        <div class="food-preview" style="margin-top: 20px; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 10px;">
+                            <p style="color: #10B981; font-weight: 600;">${catalogFood.name}</p>
+                            <p style="font-size: 12px; color: rgba(255,255,255,0.6);">
+                                ${catalogFood.calories} cal | ${catalogFood.protein}g protein | ${catalogFood.carbs}g carbs | ${catalogFood.fats}g fat
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Add click handlers to meal type buttons
+        modal.querySelectorAll('.meal-type-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const mealType = btn.dataset.meal;
+                
+                const foodEntry = {
+                    ...catalogFood,
+                    mealType: mealType,
+                    date: serverTimestamp(),
+                    catalogId: catalogId
+                };
+                
+                delete foodEntry.isFavorite;
+                
+                await addDoc(collection(db, 'users', currentUser.uid, 'foodEntries'), foodEntry);
+                modal.remove();
+                showNotification(`${catalogFood.name} added to ${mealType}!`, 'success');
+                
+                // Reload dashboard if active
+                if (document.getElementById('calorie-dashboard-tab').classList.contains('active')) {
+                    loadCalorieDashboard();
+                }
+            });
+        });
+        
+    } catch (error) {
+        console.error('Error quick adding food:', error);
+        showNotification('Error adding food', 'error');
+    }
+};
+
+// Delete catalog food
+window.deleteCatalogFood = async (foodId) => {
+    if (!confirm('Remove this food from your catalog?')) return;
+    
+    try {
+        await deleteDoc(doc(db, 'users', currentUser.uid, 'foodCatalog', foodId));
+        loadFoodCatalog();
+        showNotification('Food removed from catalog', 'success');
+    } catch (error) {
+        console.error('Error deleting catalog food:', error);
+    }
+};
+
+// Load food history - FIXED VERSION
+async function loadFoodHistory() {
+    if (!currentUser) return;
+    
+    const historyDate = document.getElementById('history-date');
+    if (historyDate) {
+        historyDate.textContent = currentHistoryDate.toLocaleDateString('en-US', {
+            weekday: 'long',
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric'
+        });
+    }
+    
+    try {
+        // Set date boundaries for the query
+        const startOfDay = new Date(currentHistoryDate);
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(currentHistoryDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        
+        // Query with proper Timestamp conversion
+        const foodRef = collection(db, 'users', currentUser.uid, 'foodEntries');
+        const q = query(
+            foodRef,
+            where('date', '>=', Timestamp.fromDate(startOfDay)),
+            where('date', '<=', Timestamp.fromDate(endOfDay)),
+            orderBy('date', 'desc')
+        );
+        
+        const snapshot = await getDocs(q);
+        const historyEntries = [];
+        
+        snapshot.forEach(doc => {
+            historyEntries.push({ id: doc.id, ...doc.data() });
+        });
+        
+        displayHistoryMeals(historyEntries);
+        displayHistorySummary(historyEntries);
+        
+    } catch (error) {
+        console.error('Error loading food history:', error);
+        
+        // If the query fails (likely due to missing index), fall back to client-side filtering
+        try {
+            const foodRef = collection(db, 'users', currentUser.uid, 'foodEntries');
+            const snapshot = await getDocs(foodRef);
+            
+            const startOfDay = new Date(currentHistoryDate);
+            startOfDay.setHours(0, 0, 0, 0);
+            const endOfDay = new Date(currentHistoryDate);
+            endOfDay.setHours(23, 59, 59, 999);
+            
+            const historyEntries = [];
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                if (data.date) {
+                    const entryDate = data.date.toDate();
+                    if (entryDate >= startOfDay && entryDate <= endOfDay) {
+                        historyEntries.push({ id: doc.id, ...data });
+                    }
+                }
+            });
+            
+            // Sort by date descending
+            historyEntries.sort((a, b) => {
+                const dateA = a.date?.toDate ? a.date.toDate() : new Date(0);
+                const dateB = b.date?.toDate ? b.date.toDate() : new Date(0);
+                return dateB - dateA;
+            });
+            
+            displayHistoryMeals(historyEntries);
+            displayHistorySummary(historyEntries);
+        } catch (fallbackError) {
+            console.error('Fallback also failed:', fallbackError);
+            const historyList = document.getElementById('history-meals-list');
+            if (historyList) {
+                historyList.innerHTML = '<p class="no-meals">Error loading history. Please try again.</p>';
+            }
+        }
+    }
+}
+
+// Display history meals
+function displayHistoryMeals(entries) {
+    const historyList = document.getElementById('history-meals-list');
+    if (!historyList) return;
+    
+    if (entries.length === 0) {
+        historyList.innerHTML = '<p class="no-meals">No meals recorded for this date.</p>';
+        return;
+    }
+    
+    historyList.innerHTML = '';
+    
+    // Group by meal type
+    const mealGroups = {
+        breakfast: [],
+        lunch: [],
+        dinner: [],
+        snack: []
+    };
+    
+    entries.forEach(entry => {
+        let mealType = entry.mealType || 'snack';
+        // Ensure mealType is valid, default to 'snack' if not
+        if (!mealGroups.hasOwnProperty(mealType)) {
+            mealType = 'snack';
+        }
+        mealGroups[mealType].push(entry);
+    });
+    
+    Object.entries(mealGroups).forEach(([mealType, meals]) => {
+        if (meals.length > 0) {
+            const mealSection = document.createElement('div');
+            mealSection.className = 'history-meal-section';
+            
+            const header = document.createElement('h4');
+            header.innerHTML = `${mealType.charAt(0).toUpperCase() + mealType.slice(1)}`;
+            mealSection.appendChild(header);
+            
+            meals.forEach(meal => {
+                const mealItem = document.createElement('div');
+                mealItem.className = 'history-meal-item';
+                mealItem.innerHTML = `
+                    <div class="meal-info">
+                        <div class="meal-name">${meal.name}</div>
+                        <div class="meal-details">
+                            ${meal.calories} cal | P: ${meal.protein}g | C: ${meal.carbs}g | F: ${meal.fats}g
+                        </div>
+                    </div>
+                    <button class="edit-meal-btn" onclick="editFoodEntry('${meal.id}')">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="delete-meal-btn" onclick="deleteFoodEntry('${meal.id}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                `;
+                mealSection.appendChild(mealItem);
+            });
+            
+            historyList.appendChild(mealSection);
+        }
+    });
+}
+
+// Display history summary
+function displayHistorySummary(entries) {
+    const summary = document.getElementById('history-summary');
+    if (!summary) return;
+    
+    const totals = calculateDailyTotals(entries);
+    
+    summary.innerHTML = `
+        <h4>Day Summary</h4>
+        <div class="summary-stats">
+            <div class="summary-stat">
+                <span class="stat-label">Total Calories:</span>
+                <span class="stat-value">${totals.calories}</span>
+            </div>
+            <div class="summary-stat">
+                <span class="stat-label">Protein:</span>
+                <span class="stat-value">${totals.protein}g</span>
+            </div>
+            <div class="summary-stat">
+                <span class="stat-label">Carbs:</span>
+                <span class="stat-value">${totals.carbs}g</span>
+            </div>
+            <div class="summary-stat">
+                <span class="stat-label">Fats:</span>
+                <span class="stat-value">${totals.fats}g</span>
+            </div>
+            <div class="summary-stat">
+                <span class="stat-label">Sugar:</span>
+                <span class="stat-value">${totals.sugar}g</span>
+            </div>
+        </div>
+    `;
+}
+
+// Change history date
+window.changeHistoryDate = (days) => {
+    const newDate = new Date(currentHistoryDate);
+    newDate.setDate(newDate.getDate() + days);
+    
+    // Don't allow future dates
+    const today = new Date();
+    if (newDate > today) {
+        showNotification('Cannot view future dates', 'error');
+        return;
+    }
+    
+    // Don't go back more than 10 days
+    const tenDaysAgo = new Date();
+    tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
+    if (newDate < tenDaysAgo) {
+        showNotification('History limited to last 10 days', 'error');
+        return;
+    }
+    
+    currentHistoryDate = newDate;
+    loadFoodHistory();
+};
+
+// Delete food entry
+window.deleteFoodEntry = async (entryId) => {
+    if (!confirm('Delete this food entry?')) return;
+    
+    try {
+        await deleteDoc(doc(db, 'users', currentUser.uid, 'foodEntries', entryId));
+        showNotification('Food entry deleted', 'success');
+        
+        // Reload current view
+        if (document.getElementById('calorie-dashboard-tab').classList.contains('active')) {
+            loadCalorieDashboard();
+        } else if (document.getElementById('calorie-history-tab').classList.contains('active')) {
+            loadFoodHistory();
+        }
+    } catch (error) {
+        console.error('Error deleting food entry:', error);
+    }
+};
+
+window.editFoodEntry = async (entryId) => {
+    try {
+        // Fetch the current food entry data
+        const entryRef = doc(db, 'users', currentUser.uid, 'foodEntries', entryId);
+        const entryDoc = await getDoc(entryRef);
+        
+        if (!entryDoc.exists()) {
+            showNotification('Food entry not found', 'error');
+            return;
+        }
+        
+        const foodData = entryDoc.data();
+        
+        // Create and show edit modal
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.style.display = 'flex';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Edit Food Entry</h2>
+                    <button class="close-modal" onclick="this.closest('.modal').remove()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="food-entry-form">
+                        <div class="food-input-group">
+                            <label>Food Name</label>
+                            <input type="text" id="edit-food-name" value="${foodData.name || ''}" />
+                        </div>
+                        <div class="food-input-group">
+                            <label>Meal Type</label>
+                            <select id="edit-meal-type">
+                                <option value="breakfast" ${foodData.mealType === 'breakfast' ? 'selected' : ''}>Breakfast</option>
+                                <option value="lunch" ${foodData.mealType === 'lunch' ? 'selected' : ''}>Lunch</option>
+                                <option value="dinner" ${foodData.mealType === 'dinner' ? 'selected' : ''}>Dinner</option>
+                                <option value="snack" ${foodData.mealType === 'snack' ? 'selected' : ''}>Snack</option>
+                            </select>
+                        </div>
+                        <div class="nutrition-section">
+                            <h3>Nutritional Information</h3>
+                            <div class="nutrition-grid">
+                                <div class="nutrition-input">
+                                    <label>Calories</label>
+                                    <input type="number" id="edit-calories" value="${foodData.calories || 0}" />
+                                </div>
+                                <div class="nutrition-input">
+                                    <label>Protein (g)</label>
+                                    <input type="number" id="edit-protein" value="${foodData.protein || 0}" />
+                                </div>
+                                <div class="nutrition-input">
+                                    <label>Carbs (g)</label>
+                                    <input type="number" id="edit-carbs" value="${foodData.carbs || 0}" />
+                                </div>
+                                <div class="nutrition-input">
+                                    <label>Fats (g)</label>
+                                    <input type="number" id="edit-fats" value="${foodData.fats || 0}" />
+                                </div>
+                                <div class="nutrition-input">
+                                    <label>Sugar (g)</label>
+                                    <input type="number" id="edit-sugar" value="${foodData.sugar || 0}" />
+                                </div>
+                                <div class="nutrition-input">
+                                    <label>Fiber (g)</label>
+                                    <input type="number" id="edit-fiber" value="${foodData.fiber || 0}" />
+                                </div>
+                                <div class="nutrition-input">
+                                    <label>Sodium (mg)</label>
+                                    <input type="number" id="edit-sodium" value="${foodData.sodium || 0}" />
+                                </div>
+                                <div class="nutrition-input">
+                                    <label>Serving Size</label>
+                                    <input type="text" id="edit-serving" value="${foodData.serving || ''}" />
+                                </div>
+                            </div>
+                        </div>
+                        <button class="save-edit-btn" onclick="saveEditedFood('${entryId}')">
+                            <i class="fas fa-save"></i>
+                            <span>Save Changes</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+    } catch (error) {
+        console.error('Error loading food entry:', error);
+        showNotification('Error loading food entry', 'error');
+    }
+};
+
+window.saveEditedFood = async (entryId) => {
+    try {
+        const updatedData = {
+            name: document.getElementById('edit-food-name').value,
+            mealType: document.getElementById('edit-meal-type').value,
+            calories: parseFloat(document.getElementById('edit-calories').value) || 0,
+            protein: parseFloat(document.getElementById('edit-protein').value) || 0,
+            carbs: parseFloat(document.getElementById('edit-carbs').value) || 0,
+            fats: parseFloat(document.getElementById('edit-fats').value) || 0,
+            sugar: parseFloat(document.getElementById('edit-sugar').value) || 0,
+            fiber: parseFloat(document.getElementById('edit-fiber').value) || 0,
+            sodium: parseFloat(document.getElementById('edit-sodium').value) || 0,
+            serving: document.getElementById('edit-serving').value || '',
+            lastModified: serverTimestamp()
+        };
+        
+        const entryRef = doc(db, 'users', currentUser.uid, 'foodEntries', entryId);
+        await updateDoc(entryRef, updatedData);
+        
+        // Close modal
+        document.querySelector('.modal').remove();
+        
+        showNotification('Food entry updated!', 'success');
+        
+        // Reload current view
+        if (document.getElementById('calorie-dashboard-tab').classList.contains('active')) {
+            loadCalorieDashboard();
+        } else if (document.getElementById('calorie-history-tab').classList.contains('active')) {
+            loadFoodHistory();
+        }
+    } catch (error) {
+        console.error('Error updating food entry:', error);
+        showNotification('Error updating food entry', 'error');
+    }
+};
+
+// Load nutrition goals
+async function loadNutritionGoals() {
+    if (!currentUser) return;
+    
+    try {
+        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+        if (userDoc.exists()) {
+            const goals = userDoc.data().nutritionGoals || {};
+            
+            document.getElementById('goal-calories').value = goals.calories || 2000;
+            document.getElementById('goal-protein').value = goals.protein || 50;
+            document.getElementById('goal-carbs').value = goals.carbs || 250;
+            document.getElementById('goal-fats').value = goals.fats || 65;
+            document.getElementById('goal-sugar').value = goals.sugar || 50;
+        }
+    } catch (error) {
+        console.error('Error loading nutrition goals:', error);
+    }
+}
+
+// Save nutrition goals
+window.saveNutritionGoals = async () => {
+    if (!currentUser) return;
+    
+    const goals = {
+        calories: parseFloat(document.getElementById('goal-calories').value) || 2000,
+        protein: parseFloat(document.getElementById('goal-protein').value) || 50,
+        carbs: parseFloat(document.getElementById('goal-carbs').value) || 250,
+        fats: parseFloat(document.getElementById('goal-fats').value) || 65,
+        sugar: parseFloat(document.getElementById('goal-sugar').value) || 50
+    };
+    
+    try {
+        const userRef = doc(db, 'users', currentUser.uid);
+        await updateDoc(userRef, { nutritionGoals: goals });
+        
+        showNotification('Nutrition goals saved!', 'success');
+        
+        // Refresh dashboard if active
+        if (document.getElementById('calorie-dashboard-tab').classList.contains('active')) {
+            loadCalorieDashboard();
+        }
+    } catch (error) {
+        console.error('Error saving nutrition goals:', error);
+    }
+};
+
+window.saveDashboardWeight = async () => {
+    const weightInput = document.getElementById('dashboard-weight-input');
+    const val = parseFloat(weightInput.value);
+    
+    if (!val || val <= 0) {
+        showNotification('Please enter a valid weight', 'error');
+        return;
+    }
+    
+    try {
+        // Save to a separate calorieWeights collection - NOT measurements
+        await addDoc(collection(db, 'users', currentUser.uid, 'calorieWeights'), {
+            userId: currentUser.uid,
+            weight: val,
+            date: serverTimestamp()
+        });
+        
+        weightInput.value = '';
+        // Refresh both the chart and the history table
+        await loadDashboardWeightChart();
+        await loadCalorieWeightHistory();
+        showNotification('Weight saved!', 'success');
+    } catch (err) {
+        console.error('Error saving weight:', err);
+        showNotification('Error saving weight', 'error');
+    }
+};
+
+async function loadDashboardWeightChart() {
+    if (!currentUser) return;
+    
+    const canvas = document.getElementById('dashboard-weight-chart');
+    if (!canvas) return;
+    
+    try {
+        // Destroy any existing chart
+        if (dashboardWeightChart) {
+            dashboardWeightChart.destroy();
+            dashboardWeightChart = null;
+        }
+        
+        // Get weights from the calorie-specific collection
+        const weightsRef = collection(db, 'users', currentUser.uid, 'calorieWeights');
+        const snapshot = await getDocs(weightsRef);
+        
+        if (snapshot.empty) {
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.font = '14px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('No weight data yet', canvas.width / 2, canvas.height / 2);
+            return;
+        }
+        
+        // Build a map of date -> max weight so that only the highest
+        // recorded weight for each day is plotted.  This mirrors the
+        // logic used in the workout section's weight chart.  Without
+        // aggregation, multiple entries per day would create noise
+        // on the calorie chart.
+        const weightMap = {};
+        snapshot.forEach(docSnap => {
+            const d = docSnap.data();
+            if (d.weight != null && d.date) {
+                const dt = d.date.toDate ? d.date.toDate() : null;
+                if (dt) {
+                    // Use the user's locale date string (without time)
+                    const dateStr = dt.toLocaleDateString();
+                    const w = parseFloat(d.weight);
+                    if (weightMap[dateStr] === undefined || w > weightMap[dateStr]) {
+                        weightMap[dateStr] = w;
+                    }
+                }
+            }
+        });
+        // Sort the dates ascending
+        const labels = Object.keys(weightMap).sort((a, b) => {
+            const da = new Date(a);
+            const db = new Date(b);
+            return da - db;
+        });
+        // Only display the last 30 days if there are more dates
+        const recentLabels = labels.slice(-30);
+        const recentData = recentLabels.map(l => weightMap[l]);
+        const ctx = canvas.getContext('2d');
+        dashboardWeightChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: recentLabels,
+                datasets: [{
+                    label: 'Weight (lbs)',
+                    data: recentData,
+                    borderColor: '#10B981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: false
+                    }
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Weight chart error:', error);
+    }
+}
+
+// ---------------------------------------------------------------
+// Calorie Weight History
+//
+// The calorie dashboard includes a simple history table showing the
+// most recent weight entries recorded via the calorie tracker.  This
+// function queries the `calorieWeights` subcollection and renders a
+// table with edit and delete controls.  The edit control allows
+// users to correct an entry if they accidentally logged an incorrect
+// weight.  Deleting an entry removes it permanently.  After any
+// modification, both the history table and the weight chart are
+// refreshed.
+async function loadCalorieWeightHistory() {
+    if (!currentUser) return;
+    const container = document.querySelector('.dashboard-weight-table');
+    if (!container) return;
+    try {
+        const weightsRef = collection(db, 'users', currentUser.uid, 'calorieWeights');
+        // Order by date descending and limit to the last 20 entries
+        const q = query(weightsRef, orderBy('date', 'desc'), qLimit(20));
+        const snapshot = await getDocs(q);
+        const rows = [];
+        snapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            const dt = data.date && data.date.toDate ? data.date.toDate() : null;
+            const formatted = dt ? dt.toLocaleDateString() : '';
+            rows.push({
+                id: docSnap.id,
+                date: formatted,
+                weight: data.weight != null ? data.weight : 'N/A'
+            });
+        });
+        if (rows.length === 0) {
+            container.innerHTML = '<p>No weight entries recorded yet.</p>';
+            return;
+        }
+        // Build HTML table with edit and delete buttons
+        let html = '<table class="measurements-table"><thead><tr><th>Date</th><th>Weight (lbs)</th><th></th></tr></thead><tbody>';
+        rows.forEach(row => {
+            html += `<tr><td>${row.date}</td><td>${row.weight}</td><td>
+                        <button class="weight-edit-btn" data-id="${row.id}" data-weight="${row.weight}" title="Edit entry"><i class="fas fa-edit"></i></button>
+                        <button class="weight-delete-btn" data-id="${row.id}" title="Delete entry">&times;</button>
+                    </td></tr>`;
+        });
+        html += '</tbody></table>';
+        container.innerHTML = html;
+        // Attach handlers for edit and delete actions
+        container.querySelectorAll('.weight-edit-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const id = e.currentTarget.getAttribute('data-id');
+                const currentWeight = parseFloat(e.currentTarget.getAttribute('data-weight'));
+                if (!id) return;
+                const newVal = prompt('Enter new weight (lbs):', currentWeight);
+                const newWeight = parseFloat(newVal);
+                if (!newVal || isNaN(newWeight) || newWeight <= 0) {
+                    showNotification('Invalid weight value', 'error');
+                    return;
+                }
+                try {
+                    const docRef = doc(db, 'users', currentUser.uid, 'calorieWeights', id);
+                    await updateDoc(docRef, { weight: newWeight, lastModified: serverTimestamp() });
+                    showNotification('Weight entry updated', 'success');
+                    await loadDashboardWeightChart();
+                    await loadCalorieWeightHistory();
+                } catch (err) {
+                    console.error('Error updating weight entry:', err);
+                    showNotification('Error updating weight entry', 'error');
+                }
+            });
+        });
+        container.querySelectorAll('.weight-delete-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const id = e.currentTarget.getAttribute('data-id');
+                if (!id) return;
+                if (!confirm('Delete this weight entry?')) return;
+                try {
+                    await deleteDoc(doc(db, 'users', currentUser.uid, 'calorieWeights', id));
+                    showNotification('Weight entry deleted', 'success');
+                    await loadDashboardWeightChart();
+                    await loadCalorieWeightHistory();
+                } catch (err) {
+                    console.error('Error deleting weight entry:', err);
+                    showNotification('Error deleting weight entry', 'error');
+                }
+            });
+        });
+    } catch (err) {
+        console.error('Failed to load calorie weight history:', err);
+        container.innerHTML = '<p>Error loading weight history.</p>';
+    }
+}
+
+// Expose functions globally for event handlers defined in markup (if needed)
+window.loadCalorieWeightHistory = loadCalorieWeightHistory;
+window.editCalorieWeightEntry = async function(id) {
+    // Provided for potential external use; editing handled in table handler above
+    return;
+};
+window.deleteCalorieWeightEntry = async function(id) {
+    // Provided for potential external use; deletion handled in table handler above
+    return;
+};
+
+// Update calorie section when opened
+window.openCalorieSection = () => {
+    document.getElementById('main-selection').style.display = 'none';
+    document.getElementById('workout-section').style.display = 'none';
+    document.getElementById('calorie-section').style.display = 'block';
+    
+    // Load dashboard by default
+    switchCalorieTab('dashboard');
+};
+
 
 // ===============================================
 // Exercise Library Functions
@@ -2250,6 +3382,50 @@ function displayExercises(category) {
 
 // Search functionality
 document.addEventListener('DOMContentLoaded', () => {
+    // Setup food photo upload
+const foodPhotoPreview = document.getElementById('food-photo-preview');
+const foodPhotoInput = document.getElementById('food-photo-input');
+
+if (foodPhotoPreview) {
+    foodPhotoPreview.addEventListener('click', () => {
+        foodPhotoInput.click();
+    });
+}
+
+if (foodPhotoInput) {
+    foodPhotoInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            // TODO: Replace with alternative storage solution
+            // Currently disabled due to Google Cloud billing
+            console.log('Food photo upload temporarily disabled - Google Cloud replacement pending');
+            
+            // For now, just preview locally
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                foodPhotoPreview.style.backgroundImage = `url(${e.target.result})`;
+                foodPhotoPreview.style.backgroundSize = 'cover';
+                foodPhotoPreview.style.backgroundPosition = 'center';
+                foodPhotoPreview.innerHTML = '';
+                currentFoodPhoto = file;
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+}
+
+// Catalog search functionality
+const catalogSearchInput = document.getElementById('catalog-search');
+if (catalogSearchInput) {
+    catalogSearchInput.addEventListener('input', (e) => {
+        const searchTerm = e.target.value.toLowerCase();
+        const filtered = foodCatalog.filter(food => 
+            food.name.toLowerCase().includes(searchTerm) ||
+            (food.description && food.description.toLowerCase().includes(searchTerm))
+        );
+        displayFoodCatalog(filtered);
+    });
+}
   // ---- Auto-upgrade any <img src="users/..."> to signed HTTPS URLs
   function needsUpgrade(src) {
     return src && !/^https?:\/\//i.test(src) && /(\/)?users\//i.test(src);
