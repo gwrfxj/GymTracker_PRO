@@ -3059,11 +3059,10 @@ html, body { max-width: 100%; overflow-x: hidden; }
 @media (max-width: 480px) {
     .measurements-table {
         font-size: 10px;
-        display: block;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
     }
-    
+
     .measurements-table th,
     .measurements-table td {
         padding: 4px 3px; /* Tighter padding on mobile */
@@ -3314,6 +3313,10 @@ html, body { max-width: 100%; overflow-x: hidden; }
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: var(--radius-md);
     color: var(--primary-white);
+}
+/* Provide a minimum width so the edit/delete column doesn't wrap on mobile */
+.dashboard-weight-table .measurements-table {
+    min-width: 320px;
 }
 
 /* Add Food Form Styles */
@@ -3979,6 +3982,14 @@ html, body { max-width: 100%; overflow-x: hidden; }
     cursor: pointer;
     transition: var(--transition-normal);
     font-size: 12px;
+}
+/* Reduce button size on small screens */
+@media (max-width: 480px) {
+    .weight-edit-btn,
+    .weight-delete-btn {
+        padding: 3px 4px;
+        font-size: 10px;
+    }
 }
 
 .weight-edit-btn:hover {
