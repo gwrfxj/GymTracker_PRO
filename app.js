@@ -426,43 +426,43 @@ onAuthStateChanged(auth, async (user) => {
 // ===============================================
 async function loadUserData() {
     if (!currentUser) return;
-    
+
     try {
         const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-        
+
         if (userDoc.exists()) {
             const userData = userDoc.data();
-            
+
             // Update welcome message
             document.getElementById('user-name').textContent = userData.displayName || 'Champion';
-            
-            // Update stats summary cards
+
+            // Update stats summary cards (workouts, weight lifted, PRs)
             document.getElementById('total-workouts').textContent = userData.stats?.totalWorkouts || 0;
-            document.getElementById('total-weight').textContent = `${userData.stats?.totalWeight || 0} lbs`;
-            document.getElementById('total-prs').textContent = Object.keys(userData.stats?.personalRecords || {}).length;
+            document.getElementById('total-weight').textContent   = `${userData.stats?.totalWeight || 0} lbs`;
+            document.getElementById('total-prs').textContent      = Object.keys(userData.stats?.personalRecords || {}).length;
 
             // Update streak and PR counters on the dashboard
             updateDashboardStats(userData);
-            
-            // Check if week needs reset
-            await checkWeeklyReset();
-            
-            // Load muscle map
-            await loadMuscleMap();
-            
-            // Load workout history
-            await loadWorkoutHistory();
-            
-            // Load routines
-            await loadRoutines();
-            
-            // Load PRs
-            await loadPRs();
-            
-            // Load measurements
-            await loadMeasurements();
 
-            await loadProgressPhotos();
+            // NEW: Load today's food entries and update the Calories card
+            // This makes sure the main Calories card shows the correct “X left” or “X over”
+            // even if the user never opens the calorie tracker.
+            try {
+                await loadTodaysFoodEntries();
+                const totals       = calculateDailyTotals(todaysFoodEntries);
+                const defaultGoals = { calories: 2000, protein: 50, carbs: 250, fats: 65, sugar: 50 };
+                const goals        = userData.nutritionGoals || defaultGoals;
+                updateCalorieCardStats(goals, totals);
+            } catch (err) {
+                console.warn('Unable to update calorie card stats:', err?.message || err);
+            }
+
+            // Continue loading other user data
+            await checkWeeklyReset();
+            await loadMuscleMap();
+            await loadWorkoutHistory();
+            await loadRoutines();
+            await loadPRs();
         }
     } catch (error) {
         console.error('Error loading user data:', error);
@@ -2255,52 +2255,52 @@ async function loadCalorieDashboard() {
             month: 'long',
             day: 'numeric'
         });
-        
+
         // Load today's food entries
         await loadTodaysFoodEntries();
-        
+
         // Load nutrition goals
-        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+        const userDoc  = await getDoc(doc(db, 'users', currentUser.uid));
         const userData = userDoc.exists() ? userDoc.data() : {};
-        const goals = userData.nutritionGoals || {
+        const goals    = userData.nutritionGoals || {
             calories: 2000,
             protein: 50,
             carbs: 250,
             fats: 65,
             sugar: 50
         };
-        
+
         // Update goal displays
         document.getElementById('calorie-goal-display').textContent = goals.calories;
         document.getElementById('protein-goal-display').textContent = goals.protein + 'g';
-        document.getElementById('carbs-goal-display').textContent = goals.carbs + 'g';
-        document.getElementById('fats-goal-display').textContent = goals.fats + 'g';
-        document.getElementById('sugar-goal-display').textContent = goals.sugar + 'g';
-        
+        document.getElementById('carbs-goal-display').textContent   = goals.carbs + 'g';
+        document.getElementById('fats-goal-display').textContent    = goals.fats + 'g';
+        document.getElementById('sugar-goal-display').textContent   = goals.sugar + 'g';
+
         // Calculate totals from today's entries
         const totals = calculateDailyTotals(todaysFoodEntries);
-        
+
         // Update consumed displays
         document.getElementById('calories-consumed').textContent = totals.calories;
-        document.getElementById('protein-consumed').textContent = totals.protein + 'g';
-        document.getElementById('carbs-consumed').textContent = totals.carbs + 'g';
-        document.getElementById('fats-consumed').textContent = totals.fats + 'g';
-        document.getElementById('sugar-consumed').textContent = totals.sugar + 'g';
-        
+        document.getElementById('protein-consumed').textContent  = totals.protein + 'g';
+        document.getElementById('carbs-consumed').textContent    = totals.carbs + 'g';
+        document.getElementById('fats-consumed').textContent     = totals.fats + 'g';
+        document.getElementById('sugar-consumed').textContent    = totals.sugar + 'g';
+
         // Update progress bars
         updateProgressBar('calories', totals.calories, goals.calories);
-        updateProgressBar('protein', totals.protein, goals.protein);
-        updateProgressBar('carbs', totals.carbs, goals.carbs);
-        updateProgressBar('fats', totals.fats, goals.fats);
-        updateProgressBar('sugar', totals.sugar, goals.sugar);
-        
+        updateProgressBar('protein',  totals.protein,  goals.protein);
+        updateProgressBar('carbs',    totals.carbs,    goals.carbs);
+        updateProgressBar('fats',     totals.fats,     goals.fats);
+        updateProgressBar('sugar',    totals.sugar,    goals.sugar);
+
+        // NEW: update the Calories card on the main dashboard
+        updateCalorieCardStats(goals, totals);
+
         // Load weight chart and history for the calorie dashboard
-        // First load the aggregated chart that shows only the highest weight
-        // recorded for each day.  Then populate the weight history table
-        // so users can review or edit past entries.
         await loadDashboardWeightChart();
         await loadCalorieWeightHistory();
-        
+
     } catch (error) {
         console.error('Error loading calorie dashboard:', error);
     }
@@ -2377,6 +2377,38 @@ function calculateDailyTotals(entries) {
         totals.sugar += entry.sugar || 0;
         return totals;
     }, { calories: 0, protein: 0, carbs: 0, fats: 0, sugar: 0 });
+}
+
+// ===============================================
+// Calorie Card Summary
+//
+// Updates the summary stats on the main selection calorie card.
+// The first field shows how many calories remain (or are over)
+// relative to the user's daily goal, and the second field displays
+// whether the user is on target or has exceeded their calorie goal.
+function updateCalorieCardStats(goals, totals) {
+    try {
+        const calSpan   = document.getElementById('calories-today-stat');
+        const statusSpan = document.getElementById('calories-status-stat');
+        if (!calSpan || !statusSpan) return;
+
+        const goalCalories = goals?.calories ?? 0;
+        const consumed     = totals?.calories ?? 0;
+        const remaining    = goalCalories - consumed;
+
+        // Format numbers with comma separators
+        const formatted = Math.abs(remaining).toLocaleString();
+        const caloriesText = remaining >= 0 ? `${formatted} left`
+                                            : `${formatted} over`;
+        const statusText  = remaining >= 0 ? 'On target'
+                                           : 'Over target';
+
+        // Update the spans, keeping the icons intact
+        calSpan.innerHTML   = `<i class="fas fa-chart-line"></i> ${caloriesText}`;
+        statusSpan.innerHTML = `<i class="fas fa-bullseye"></i> ${statusText}`;
+    } catch (err) {
+        console.warn('updateCalorieCardStats() failed', err?.message || err);
+    }
 }
 
 // Update progress bars
